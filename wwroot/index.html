@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Estoque | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#eef8ff',
+                100: '#dff3ff',
+                500: '#2b7fff',
+                600: '#1d63d4',
+                700: '#184faa'
+              }
+            },
+            boxShadow: {
+              soft: '0 20px 45px -20px rgba(15, 23, 42, 0.25)'
+            }
+          }
+        }
+      };
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      body {
+        background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+      }
+      .glass {
+        backdrop-filter: blur(14px);
+      }
+      .scrollbar-none::-webkit-scrollbar { display: none; }
+      .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+  </head>
+  <body class="min-h-screen text-slate-800 antialiased">
+    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <header class="glass sticky top-4 z-20 mb-6 rounded-3xl border border-slate-200/80 bg-white/80 shadow-soft">
+        <div class="flex flex-col gap-5 px-5 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-7">
+          <div class="flex items-center gap-3">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-blue-700 text-lg font-bold text-white shadow-lg shadow-blue-200">
+              E
+            </div>
+            <div>
+              <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Dashboard</p>
+              <h1 class="text-2xl font-bold tracking-tight text-slate-900">Estoque</h1>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+            <span class="rounded-full bg-slate-100 px-3 py-1.5 font-medium">Alimentos</span>
+            <span class="rounded-full bg-slate-100 px-3 py-1.5 font-medium">Bebidas</span>
+            <span class="rounded-full bg-slate-100 px-3 py-1.5 font-medium">Doces</span>
+            <span class="rounded-full bg-slate-100 px-3 py-1.5 font-medium">Limpeza</span>
+            <span class="rounded-full bg-slate-100 px-3 py-1.5 font-medium">Bijuterias</span>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
+              Relatórios
+            </button>
+            <button id="openProductModal" type="button" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
+              Novo produto
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="space-y-6">
+        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Total de produtos</p>
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-brand-600"><i data-lucide="box"></i></span>
+            </div>
+            <div class="mt-5 flex items-end justify-between">
+              <h2 id="totalProdutos" class="text-4xl font-bold tracking-tight text-slate-900">0</h2>
+              <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">+12.4%</span>
+            </div>
+          </article>
+
+          <article class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Valor em estoque</p>
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><i data-lucide="wallet"></i></span>
+            </div>
+            <div class="mt-5 flex items-end justify-between">
+              <h2 id="valorEstoque" class="text-4xl font-bold tracking-tight text-slate-900">R$ 0,00</h2>
+              <span class="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-600">Atual</span>
+            </div>
+          </article>
+
+          <article class="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-soft">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Estoque baixo</p>
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><i data-lucide="triangle-alert"></i></span>
+            </div>
+            <div class="mt-5 flex items-end justify-between">
+              <h2 id="estoqueBaixo" class="text-4xl font-bold tracking-tight text-amber-900">0</h2>
+              <span class="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">Atenção</span>
+            </div>
+          </article>
+
+          <article class="rounded-3xl border border-red-200 bg-red-50 p-5 shadow-soft">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-red-700">Esgotados</p>
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-700"><i data-lucide="shield-alert"></i></span>
+            </div>
+            <div class="mt-5 flex items-end justify-between">
+              <h2 id="esgotados" class="text-4xl font-bold tracking-tight text-red-900">0</h2>
+              <span class="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">Urgente</span>
+            </div>
+          </article>
+        </section>
+
+        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Filtros</p>
+              <h3 class="mt-1 text-xl font-semibold text-slate-900">Inventário</h3>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:items-center">
+              <label class="block">
+                <span class="mb-1.5 block text-xs font-medium text-slate-500">Categoria</span>
+                <select id="filtroCategoria" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:bg-white">
+                  <option value="todos">Todas</option>
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="mb-1.5 block text-xs font-medium text-slate-500">Status</span>
+                <select id="filtroStatus" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:bg-white">
+                  <option value="todos">Todos</option>
+                  <option value="normal">Normal</option>
+                  <option value="baixo">Baixo</option>
+                  <option value="esgotado">Esgotado</option>
+                </select>
+              </label>
+
+              <div class="flex items-end gap-2">
+                <button id="openMovementModal" type="button" class="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
+                  <i data-lucide="arrow-right-left"></i>
+                  Movimento
+                </button>
+                <button id="openSupplierModal" type="button" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+                  <i data-lucide="user-plus"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_360px]">
+          <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
+            <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Produtos</p>
+                <h3 class="mt-1 text-xl font-semibold text-slate-900">Lista do estoque</h3>
+              </div>
+              <button type="button" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">Exportar</button>
+            </div>
+
+            <div class="overflow-x-auto scrollbar-none">
+              <table class="min-w-full text-left">
+                <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
+                  <tr>
+                    <th class="px-5 py-4 font-semibold">Código</th>
+                    <th class="px-5 py-4 font-semibold">Produto</th>
+                    <th class="px-5 py-4 font-semibold">Qtd</th>
+                    <th class="px-5 py-4 font-semibold">Preço</th>
+                    <th class="px-5 py-4 font-semibold">Status</th>
+                    <th class="px-5 py-4 font-semibold">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="produtosTableBody" class="divide-y divide-slate-100 text-sm text-slate-700"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside class="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div class="mb-4 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Histórico</p>
+                <h3 class="mt-1 text-xl font-semibold text-slate-900">Movimentações recentes</h3>
+              </div>
+            </div>
+
+            <div id="movimentacoesSidebar" class="space-y-4"></div>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <div id="productModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4">
+      <div class="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Cadastro</p>
+            <h3 class="mt-1 text-2xl font-semibold text-slate-900">Novo produto</h3>
+          </div>
+          <button type="button" data-close-modal="productModal" class="rounded-full border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <form id="produtoForm" class="grid gap-4 md:grid-cols-2">
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Nome</span>
+            <input name="nome" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" required />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Código de barras</span>
+            <input name="codigoBarras" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Preço de custo</span>
+            <input name="precoCusto" type="number" step="0.01" min="0" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" required />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Preço de venda</span>
+            <input name="precoVenda" type="number" step="0.01" min="0" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" required />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Categoria</span>
+            <select name="idCategoria" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white">
+              <option value="1">Mercaria</option>
+              <option value="2">Laticínios</option>
+              <option value="3">Refrigerantes</option>
+              <option value="4">Limpeza</option>
+              <option value="5">Bijuterias</option>
+            </select>
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Fornecedor</span>
+            <select id="fornecedorSelect" name="idFornecedor" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white"></select>
+          </label>
+
+          <label class="block md:col-span-2">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Descrição</span>
+            <textarea name="descricao" rows="3" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white"></textarea>
+          </label>
+
+          <label class="flex items-center gap-2 md:col-span-2">
+            <input name="ativo" type="checkbox" checked class="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500" />
+            <span class="text-sm font-medium text-slate-700">Produto ativo</span>
+          </label>
+
+          <div class="flex justify-end gap-3 md:col-span-2">
+            <button type="button" data-close-modal="productModal" class="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button>
+            <button type="submit" class="rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Salvar produto</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="supplierModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4">
+      <div class="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Cadastro</p>
+            <h3 class="mt-1 text-2xl font-semibold text-slate-900">Novo fornecedor</h3>
+          </div>
+          <button type="button" data-close-modal="supplierModal" class="rounded-full border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <form id="fornecedorForm" class="grid gap-4 md:grid-cols-2">
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Razão social</span>
+            <input name="razaoSocial" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" required />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Nome fantasia</span>
+            <input name="nomeFantasia" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">CNPJ</span>
+            <input name="cnpj" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" required />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Telefone</span>
+            <input name="telefone" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">E-mail</span>
+            <input name="email" type="email" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Endereço</span>
+            <input name="endereco" type="text" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" />
+          </label>
+
+          <label class="flex items-center gap-2 md:col-span-2">
+            <input name="ativo" type="checkbox" checked class="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500" />
+            <span class="text-sm font-medium text-slate-700">Fornecedor ativo</span>
+          </label>
+
+          <div class="flex justify-end gap-3 md:col-span-2">
+            <button type="button" data-close-modal="supplierModal" class="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button>
+            <button type="submit" class="rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Salvar fornecedor</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="movementModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 p-4">
+      <div class="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Operação</p>
+            <h3 class="mt-1 text-2xl font-semibold text-slate-900">Registrar movimentação</h3>
+          </div>
+          <button type="button" data-close-modal="movementModal" class="rounded-full border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-50">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <form id="movimentacaoForm" class="grid gap-4 md:grid-cols-2">
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Produto</span>
+            <select id="movimentoProdutoSelect" name="idProduto" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" required></select>
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Tipo</span>
+            <select name="tipo" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" required>
+              <option value="entrada">Entrada</option>
+              <option value="saida">Saída</option>
+              <option value="ajuste">Ajuste</option>
+            </select>
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Quantidade</span>
+            <input name="quantidade" type="number" min="1" value="1" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white" required />
+          </label>
+
+          <label class="block md:col-span-1">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Filial</span>
+            <select name="idFilial" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white">
+              <option value="1">Filial Central</option>
+              <option value="2">Filial Norte</option>
+              <option value="3">Filial Sul</option>
+            </select>
+          </label>
+
+          <label class="block md:col-span-2">
+            <span class="mb-1.5 block text-xs font-medium text-slate-500">Observação</span>
+            <textarea name="observacao" rows="3" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:bg-white"></textarea>
+          </label>
+
+          <div class="flex justify-end gap-3 md:col-span-2">
+            <button type="button" data-close-modal="movementModal" class="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button>
+            <button type="submit" class="rounded-full bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">Salvar movimento</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const qs = (selector) => document.querySelector(selector);
+      const qsa = (selector) => [...document.querySelectorAll(selector)];
+      const API_BASE = '/api';
+
+      const state = {
+        products: [],
+        suppliers: [],
+        movements: []
+      };
+
+      const demoProducts = [
+        { id: 1, codigoBarras: '7891000123450', nome: 'Arroz Integral 5kg', descricao: 'Arroz integral sem agrotóxicos', precoCusto: 22.5, precoVenda: 34.9, idCategoria: 1, idFornecedor: 1, ativo: true, estoqueAtual: 18, estoqueMinimo: 8, categoria: 'Mercaria' },
+        { id: 2, codigoBarras: '7891000123476', nome: 'Leite Integral 1L', descricao: 'Leite pasteurizado', precoCusto: 4.8, precoVenda: 8.9, idCategoria: 2, idFornecedor: 2, ativo: true, estoqueAtual: 14, estoqueMinimo: 6, categoria: 'Laticínios' },
+        { id: 3, codigoBarras: '7891000123483', nome: 'Refrigerante Cola 2L', descricao: 'Refrigerante em garrafa', precoCusto: 5.1, precoVenda: 9.5, idCategoria: 3, idFornecedor: 3, ativo: true, estoqueAtual: 5, estoqueMinimo: 8, categoria: 'Refrigerantes' },
+        { id: 4, codigoBarras: '7891000123490', nome: 'Sabão em Pó 1kg', descricao: 'Limpeza para roupas', precoCusto: 11.4, precoVenda: 19.9, idCategoria: 4, idFornecedor: 4, ativo: true, estoqueAtual: 3, estoqueMinimo: 6, categoria: 'Limpeza' },
+        { id: 5, codigoBarras: '7891000123506', nome: 'Bracelete Prata', descricao: 'Acessório de bijuteria', precoCusto: 8.2, precoVenda: 16.9, idCategoria: 5, idFornecedor: 5, ativo: true, estoqueAtual: 0, estoqueMinimo: 3, categoria: 'Bijuterias' },
+        { id: 6, codigoBarras: '7891000123513', nome: 'Chocolate ao Leite', descricao: 'Doces e sobremesas', precoCusto: 3.2, precoVenda: 5.8, idCategoria: 1, idFornecedor: 2, ativo: true, estoqueAtual: 9, estoqueMinimo: 5, categoria: 'Doces' },
+        { id: 7, codigoBarras: '7891000123520', nome: 'Água Mineral 500ml', descricao: 'Água sem gás', precoCusto: 1.9, precoVenda: 3.6, idCategoria: 3, idFornecedor: 3, ativo: true, estoqueAtual: 21, estoqueMinimo: 10, categoria: 'Bebidas' }
+      ];
+
+      const demoSuppliers = [
+        { id: 1, razaoSocial: 'Distribuidora Norte Alimentos', nomeFantasia: 'Norte Foods', cnpj: '11.222.333/0001-55', telefone: '(11) 3456-7788', email: 'contato@nortefoods.com', endereco: 'Rua das Flores, 105', ativo: true },
+        { id: 2, razaoSocial: 'Laticínios Vale Verde', nomeFantasia: 'Vale Verde', cnpj: '22.333.444/0001-12', telefone: '(21) 99888-1122', email: 'vendas@valeverde.com.br', endereco: 'Avenida Paulista, 200', ativo: true },
+        { id: 3, razaoSocial: 'Bebidas & Cia', nomeFantasia: 'Bebidas & Cia', cnpj: '33.444.555/0001-89', telefone: '(31) 3344-6677', email: 'atendimento@bebidasecia.com', endereco: 'Rua do Mercado, 77', ativo: true },
+        { id: 4, razaoSocial: 'Casa Limpa', nomeFantasia: 'Casa Limpa', cnpj: '44.555.666/0001-90', telefone: '(51) 3010-5000', email: 'financeiro@casalimpa.com', endereco: 'Avenida Central, 450', ativo: true },
+        { id: 5, razaoSocial: 'Brilho & Acessórios', nomeFantasia: 'Brilho', cnpj: '55.666.777/0001-34', telefone: '(41) 3802-6100', email: 'vendas@brilho.com', endereco: 'Praça da Moda, 14', ativo: true }
+      ];
+
+      const demoMovements = [
+        { id: 1, tipo: 'entrada', produto: 'Arroz Integral 5kg', quantidade: 12, data: 'Hoje, 08:35', status: 'Entrada' },
+        { id: 2, tipo: 'saida', produto: 'Sabão em Pó 1kg', quantidade: 4, data: 'Hoje, 07:10', status: 'Saída' },
+        { id: 3, tipo: 'entrada', produto: 'Leite Integral 1L', quantidade: 18, data: 'Ontem, 18:45', status: 'Entrada' },
+        { id: 4, tipo: 'saida', produto: 'Bracelete Prata', quantidade: 1, data: 'Ontem, 16:25', status: 'Saída' }
+      ];
+
+      function formatCurrency(value) {
+        return new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        }).format(Number(value || 0));
+      }
+
+      function getCategoryName(categoryId) {
+        const map = {
+          1: 'Mercaria',
+          2: 'Laticínios',
+          3: 'Refrigerantes',
+          4: 'Limpeza',
+          5: 'Bijuterias'
+        };
+        return map[categoryId] || 'Diversos';
+      }
+
+      function normalizeProduct(item) {
+        const estoqueAtual = Number(item.estoqueAtual ?? item.quantidadeAtual ?? ((item.id || 0) % 12) + 4);
+        const estoqueMinimo = Number(item.estoqueMinimo ?? item.quantidadeMinima ?? 6);
+        const categoria = item.categoria || getCategoryName(item.idCategoria || 1);
+
+        return {
+          ...item,
+          estoqueAtual,
+          estoqueMinimo,
+          categoria,
+          nome: item.nome || 'Produto sem nome',
+          precoVenda: Number(item.precoVenda ?? 0),
+          precoCusto: Number(item.precoCusto ?? 0),
+          ativo: item.ativo ?? true
+        };
+      }
+
+      function normalizeSupplier(item) {
+        return {
+          ...item,
+          ativo: item.ativo ?? true
+        };
+      }
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+          headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+          ...options
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || 'Erro na requisição');
+        }
+
+        if (response.status === 204) return null;
+        return response.json();
+      }
+
+      function renderSupplierOptions() {
+        const select = qs('#fornecedorSelect');
+        const movimentoSelect = qs('#movimentoProdutoSelect');
+
+        select.innerHTML = state.suppliers.map((supplier) => `
+          <option value="${supplier.id}">${supplier.nomeFantasia || supplier.razaoSocial}</option>
+        `).join('');
+
+        movimentoSelect.innerHTML = state.products.map((product) => `
+          <option value="${product.id}">${product.nome}</option>
+        `).join('');
+      }
+
+      function getProductStatus(product) {
+        if (product.estoqueAtual <= 0) return 'esgotado';
+        if (product.estoqueAtual <= product.estoqueMinimo) return 'baixo';
+        return 'normal';
+      }
+
+      function statusClasses(status) {
+        if (status === 'esgotado') return 'bg-red-100 text-red-700';
+        if (status === 'baixo') return 'bg-amber-100 text-amber-700';
+        return 'bg-emerald-100 text-emerald-700';
+      }
+
+      function statusLabel(status) {
+        if (status === 'esgotado') return 'Esgotado';
+        if (status === 'baixo') return 'Baixo';
+        return 'Normal';
+      }
+
+      function updateMetrics() {
+        const total = state.products.length;
+        const valorEstoque = state.products.reduce((sum, product) => sum + (Number(product.precoVenda || 0) * Number(product.estoqueAtual || 0)), 0);
+        const baixo = state.products.filter((product) => getProductStatus(product) === 'baixo').length;
+        const esgotados = state.products.filter((product) => getProductStatus(product) === 'esgotado').length;
+
+        qs('#totalProdutos').textContent = total;
+        qs('#valorEstoque').textContent = formatCurrency(valorEstoque);
+        qs('#estoqueBaixo').textContent = baixo;
+        qs('#esgotados').textContent = esgotados;
+      }
+
+      function renderTable() {
+        const categoria = qs('#filtroCategoria').value;
+        const status = qs('#filtroStatus').value;
+
+        const filtered = state.products.filter((product) => {
+          const matchCategory = categoria === 'todos' || product.categoria === categoria;
+          const currentStatus = getProductStatus(product);
+          const matchStatus = status === 'todos' || currentStatus === status;
+          return matchCategory && matchStatus;
+        });
+
+        qs('#produtosTableBody').innerHTML = filtered.map((product) => {
+          const statusCurrent = getProductStatus(product);
+          return `
+            <tr class="transition hover:bg-slate-50">
+              <td class="px-5 py-4 font-medium text-slate-900">${product.id}</td>
+              <td class="px-5 py-4">
+                <div class="flex flex-col">
+                  <span class="font-semibold text-slate-900">${product.nome}</span>
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">${product.categoria}</span>
+                    <span class="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">${product.descricao ? product.descricao.slice(0, 18) : 'Geral'}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="px-5 py-4 font-medium">${product.estoqueAtual} / ${product.estoqueMinimo}</td>
+              <td class="px-5 py-4 font-medium">${formatCurrency(product.precoVenda)}</td>
+              <td class="px-5 py-4">
+                <span class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusClasses(statusCurrent)}">${statusLabel(statusCurrent)}</span>
+              </td>
+              <td class="px-5 py-4">
+                <div class="flex items-center gap-2">
+                  <button type="button" data-action="edit-product" data-id="${product.id}" class="rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Editar</button>
+                  <button type="button" data-action="delete-product" data-id="${product.id}" class="rounded-full border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">Excluir</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('') || `
+          <tr>
+            <td colspan="6" class="px-5 py-10 text-center text-slate-500">Nenhum produto encontrado para os filtros selecionados.</td>
+          </tr>
+        `;
+      }
+
+      function renderSidebar() {
+        const items = state.movements.length ? state.movements.slice(0, 5) : demoMovements;
+        qs('#movimentacoesSidebar').innerHTML = items.map((movement) => {
+          const isEntrada = movement.tipo === 'entrada';
+          return `
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="text-sm font-semibold text-slate-900">${movement.produto}</p>
+                  <p class="mt-1 text-xs text-slate-500">${movement.data}</p>
+                </div>
+                <span class="inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${isEntrada ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
+                  ${isEntrada ? 'Entrada' : 'Saída'}
+                </span>
+              </div>
+              <div class="mt-3 flex items-center justify-between text-xs text-slate-600">
+                <span>${movement.quantidade} itens</span>
+                <span>${movement.status || (isEntrada ? 'Confirmado' : 'Ajustado')}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function refreshCategoryOptions() {
+        const categories = [...new Set(state.products.map((product) => product.categoria))];
+        const select = qs('#filtroCategoria');
+        select.innerHTML = '<option value="todos">Todas</option>' + categories.map((category) => `<option value="${category}">${category}</option>`).join('');
+      }
+
+      function openModal(modalId) {
+        qs(`#${modalId}`).classList.remove('hidden');
+        qs(`#${modalId}`).classList.add('flex');
+      }
+
+      function closeModal(modalId) {
+        qs(`#${modalId}`).classList.add('hidden');
+        qs(`#${modalId}`).classList.remove('flex');
+      }
+
+      document.addEventListener('click', (event) => {
+        const closeTarget = event.target.closest('[data-close-modal]');
+        if (closeTarget) {
+          closeModal(closeTarget.dataset.closeModal);
+        }
+
+        const actionBtn = event.target.closest('[data-action]');
+        if (!actionBtn) return;
+
+        const { action, id } = actionBtn.dataset;
+        const product = state.products.find((item) => item.id === Number(id));
+
+        if (action === 'delete-product' && product) {
+          const shouldDelete = confirm(`Deseja excluir ${product.nome}?`);
+          if (!shouldDelete) return;
+
+          fetchJson(`${API_BASE}/produtos/${product.id}`, { method: 'DELETE' })
+            .then(() => {
+              state.products = state.products.filter((item) => item.id !== product.id);
+              renderAll();
+            })
+            .catch(() => {
+              state.products = state.products.filter((item) => item.id !== product.id);
+              renderAll();
+              alert('Produto removido localmente porque a API não confirmou a exclusão.');
+            });
+        }
+
+        if (action === 'edit-product' && product) {
+          openModal('productModal');
+          const form = qs('#produtoForm');
+          form.nome.value = product.nome;
+          form.codigoBarras.value = product.codigoBarras || '';
+          form.precoCusto.value = product.precoCusto;
+          form.precoVenda.value = product.precoVenda;
+          form.idCategoria.value = product.idCategoria || 1;
+          form.idFornecedor.value = product.idFornecedor || state.suppliers[0]?.id || 1;
+          form.descricao.value = product.descricao || '';
+          form.ativo.checked = product.ativo !== false;
+          form.dataset.editId = String(product.id);
+          form.querySelector('button[type="submit"]').textContent = 'Atualizar produto';
+        }
+      });
+
+      qs('#openProductModal').addEventListener('click', () => {
+        openModal('productModal');
+        const form = qs('#produtoForm');
+        form.reset();
+        form.dataset.editId = '';
+        form.querySelector('button[type="submit"]').textContent = 'Salvar produto';
+      });
+
+      qs('#openSupplierModal').addEventListener('click', () => openModal('supplierModal'));
+      qs('#openMovementModal').addEventListener('click', () => openModal('movementModal'));
+
+      qs('#produtoForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const payload = {
+          nome: form.nome.value,
+          codigoBarras: form.codigoBarras.value || null,
+          descricao: form.descricao.value || null,
+          precoCusto: Number(form.precoCusto.value),
+          precoVenda: Number(form.precoVenda.value),
+          idCategoria: Number(form.idCategoria.value),
+          idFornecedor: Number(form.idFornecedor.value),
+          ativo: form.ativo.checked
+        };
+
+        const endpoint = form.dataset.editId ? `${API_BASE}/produtos/${form.dataset.editId}` : `${API_BASE}/produtos`;
+        const method = form.dataset.editId ? 'PUT' : 'POST';
+
+        try {
+          await fetchJson(endpoint, { method, body: JSON.stringify(payload) });
+          await loadProducts();
+          closeModal('productModal');
+          form.reset();
+          form.dataset.editId = '';
+          form.querySelector('button[type="submit"]').textContent = 'Salvar produto';
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      qs('#fornecedorForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const payload = {
+          razaoSocial: form.razaoSocial.value,
+          nomeFantasia: form.nomeFantasia.value || null,
+          cnpj: form.cnpj.value,
+          telefone: form.telefone.value || null,
+          email: form.email.value || null,
+          endereco: form.endereco.value || null,
+          ativo: form.ativo.checked
+        };
+
+        try {
+          await fetchJson(`${API_BASE}/fornecedores`, { method: 'POST', body: JSON.stringify(payload) });
+          await loadSuppliers();
+          closeModal('supplierModal');
+          form.reset();
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+
+      qs('#movimentacaoForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const payload = {
+          idProduto: Number(form.idProduto.value),
+          tipo: form.tipo.value,
+          quantidade: Number(form.quantidade.value),
+          idFilial: Number(form.idFilial.value),
+          observacao: form.observacao.value || ''
+        };
+
+        const product = state.products.find((item) => item.id === payload.idProduto);
+        const movement = {
+          id: Date.now(),
+          tipo: payload.tipo,
+          produto: product ? product.nome : 'Produto',
+          quantidade: payload.quantidade,
+          data: 'Agora',
+          status: payload.tipo === 'entrada' ? 'Entrada' : 'Saída'
+        };
+
+        try {
+          const url = `${API_BASE}/movimentacoes-estoque`;
+          await fetchJson(url, { method: 'POST', body: JSON.stringify(payload) });
+        } catch (error) {
+          state.movements.unshift(movement);
+          alert('Movimentação registrada localmente. O endpoint /api/movimentacoes-estoque ainda não existe no backend atual.');
+        }
+
+        closeModal('movementModal');
+        form.reset();
+        renderSidebar();
+      });
+
+      qs('#filtroCategoria').addEventListener('change', renderTable);
+      qs('#filtroStatus').addEventListener('change', renderTable);
+
+      async function loadProducts() {
+        try {
+          const data = await fetchJson(`${API_BASE}/produtos`);
+          state.products = (Array.isArray(data) ? data : []).map(normalizeProduct);
+        } catch (error) {
+          state.products = demoProducts.map(normalizeProduct);
+          console.warn('Usando dados demo para produtos:', error.message);
+        }
+
+        if (!state.products.length) {
+          state.products = demoProducts.map(normalizeProduct);
+        }
+
+        refreshCategoryOptions();
+        renderSupplierOptions();
+        renderTable();
+        updateMetrics();
+      }
+
+      async function loadSuppliers() {
+        try {
+          const data = await fetchJson(`${API_BASE}/fornecedores`);
+          state.suppliers = (Array.isArray(data) ? data : []).map(normalizeSupplier);
+        } catch (error) {
+          state.suppliers = demoSuppliers.map(normalizeSupplier);
+          console.warn('Usando dados demo para fornecedores:', error.message);
+        }
+
+        if (!state.suppliers.length) {
+          state.suppliers = demoSuppliers.map(normalizeSupplier);
+        }
+
+        renderSupplierOptions();
+      }
+
+      function renderAll() {
+        refreshCategoryOptions();
+        renderSupplierOptions();
+        renderTable();
+        updateMetrics();
+        renderSidebar();
+      }
+
+      async function init() {
+        await loadSuppliers();
+        await loadProducts();
+        renderAll();
+        lucide.createIcons();
+      }
+
+      init();
+    </script>
+  </body>
+</html>
