@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
-import type { Pedido, Produto } from '@/types/inventory';
+import type { Pedido, Produto, Usuario } from '@/types/inventory';
 
 const createNumeroPedido = () => `PED-${Date.now().toString().slice(-6)}`;
 
@@ -29,6 +29,8 @@ const initialSelection = {
 export default function PedidosPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState<number | null>(null);
   const [form, setForm] = useState(initialForm);
   const [selection, setSelection] = useState(initialSelection);
   const [itensPedido, setItensPedido] = useState<Array<{ id: number; produtoId: number; nome: string; quantidade: number; precoVenda: number; estoqueAtual: number; estoqueMinimo: number }>>([]);
@@ -39,13 +41,19 @@ export default function PedidosPage() {
 
   async function loadPedidos() {
     try {
-      const [pedidosData, produtosData] = await Promise.all([
+      const [pedidosData, produtosData, usuariosData] = await Promise.all([
         apiFetch<Pedido[]>('/api/pedidos'),
         apiFetch<Produto[]>('/api/produtos'),
+        apiFetch<Usuario[]>('/api/usuarios'),
       ]);
 
       setPedidos(pedidosData);
       setProdutos(enrichProdutos(produtosData));
+      setUsuarios(usuariosData);
+
+      if (!usuarioSelecionadoId && usuariosData.length > 0) {
+        setUsuarioSelecionadoId(usuariosData[0].id);
+      }
     } catch (error) {
       console.error('Erro ao carregar pedidos:', error);
       setMessage({
@@ -60,6 +68,13 @@ export default function PedidosPage() {
   useEffect(() => {
     loadPedidos();
   }, []);
+
+  const usuarioAtual = usuarios.find((usuario) => usuario.id === usuarioSelecionadoId) ?? null;
+  const isAutorizado = !!usuarioAtual && (
+    usuarioAtual.cargo.toUpperCase().includes('FILIAL') ||
+    usuarioAtual.cargo.toUpperCase().includes('LOJA') ||
+    usuarioAtual.cargo.toUpperCase().includes('GERENTE')
+  );
 
   function handleFieldChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = event.target;
@@ -164,6 +179,14 @@ export default function PedidosPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!isAutorizado) {
+      setMessage({
+        type: 'error',
+        text: 'Acesso restrito. Somente usuários de filial/loja podem criar pedidos.',
+      });
+      return;
+    }
+
     if (!itensPedido.length) {
       setMessage({
         type: 'error',
@@ -240,90 +263,109 @@ export default function PedidosPage() {
           </div>
         </div>
 
+        <div className="form-grid" style={{ marginBottom: '18px' }}>
+          <label className="form-field full-width">
+            <span>Usuário que está criando o pedido</span>
+            <select value={usuarioSelecionadoId ?? ''} onChange={(event) => setUsuarioSelecionadoId(Number(event.target.value))}>
+              {usuarios.map((usuario) => (
+                <option key={usuario.id} value={usuario.id}>
+                  {usuario.nome} - {usuario.cargo}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         {message && <div className={`message ${message.type}`}>{message.text}</div>}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <label className="form-field">
-              <span>Número do pedido</span>
-              <input
-                name="numeroPedido"
-                value={form.numeroPedido}
-                onChange={handleFieldChange}
-                placeholder="PED-1001"
-              />
-            </label>
-
-            <label className="form-field">
-              <span>Filial</span>
-              <select name="filialId" value={form.filialId} onChange={handleFieldChange}>
-                <option value={1}>Filial 1</option>
-                <option value={2}>Filial 2</option>
-                <option value={3}>Filial 3</option>
-              </select>
-            </label>
-
-            <label className="form-field">
-              <span>Status</span>
-              <select name="status" value={form.status} onChange={handleFieldChange}>
-                <option value="Aberto">Aberto</option>
-                <option value="EmConferencia">Em conferência</option>
-                <option value="Conferido">Conferido</option>
-              </select>
-            </label>
-
-            <label className="form-field full-width">
-              <span>Observação</span>
-              <textarea
-                name="observacao"
-                value={form.observacao}
-                onChange={handleFieldChange}
-                placeholder="Descreva detalhes do pedido"
-              />
-            </label>
+        {!isAutorizado ? (
+          <div className="message error">
+            Acesso restrito. Apenas usuários de filial/loja podem criar pedidos.
           </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="form-grid">
+              <label className="form-field">
+                <span>Número do pedido</span>
+                <input
+                  name="numeroPedido"
+                  value={form.numeroPedido}
+                  onChange={handleFieldChange}
+                  placeholder="PED-1001"
+                />
+              </label>
 
-          <div className="panel-header" style={{ marginTop: '20px' }}>
-            <div>
-              <p className="eyebrow">Itens</p>
-              <h2>Produtos do pedido</h2>
+              <label className="form-field">
+                <span>Filial</span>
+                <select name="filialId" value={form.filialId} onChange={handleFieldChange}>
+                  <option value={1}>Filial 1</option>
+                  <option value={2}>Filial 2</option>
+                  <option value={3}>Filial 3</option>
+                </select>
+              </label>
+
+              <label className="form-field">
+                <span>Status</span>
+                <select name="status" value={form.status} onChange={handleFieldChange}>
+                  <option value="Aberto">Aberto</option>
+                  <option value="EmConferencia">Em conferência</option>
+                  <option value="Conferido">Conferido</option>
+                </select>
+              </label>
+
+              <label className="form-field full-width">
+                <span>Observação</span>
+                <textarea
+                  name="observacao"
+                  value={form.observacao}
+                  onChange={handleFieldChange}
+                  placeholder="Descreva detalhes do pedido"
+                />
+              </label>
             </div>
-          </div>
 
-          <div className="form-grid">
-            <label className="form-field">
-              <span>Produto</span>
-              <select name="produtoId" value={selection.produtoId} onChange={handleSelectionChange}>
-                <option value="">Selecione um produto</option>
-                {produtos.map((produto) => (
-                  <option key={produto.id} value={produto.id}>
-                    {produto.nome} ({produto.estoqueAtual ?? 0} em estoque)
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="panel-header" style={{ marginTop: '20px' }}>
+              <div>
+                <p className="eyebrow">Itens</p>
+                <h2>Produtos do pedido</h2>
+              </div>
+            </div>
 
-            <label className="form-field">
-              <span>Quantidade</span>
-              <input
-                name="quantidade"
-                type="number"
-                min="1"
-                value={selection.quantidade}
-                onChange={handleSelectionChange}
-              />
-            </label>
-          </div>
+            <div className="form-grid">
+              <label className="form-field">
+                <span>Produto</span>
+                <select name="produtoId" value={selection.produtoId} onChange={handleSelectionChange}>
+                  <option value="">Selecione um produto</option>
+                  {produtos.map((produto) => (
+                    <option key={produto.id} value={produto.id}>
+                      {produto.nome} ({produto.estoqueAtual ?? 0} em estoque)
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <div className="form-actions" style={{ justifyContent: 'space-between' }}>
-            <button type="button" className="secondary-button" onClick={handleAdicionarProduto}>
-              Adicionar produto
-            </button>
-            <button type="submit" className="primary-button" disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar pedido'}
-            </button>
-          </div>
-        </form>
+              <label className="form-field">
+                <span>Quantidade</span>
+                <input
+                  name="quantidade"
+                  type="number"
+                  min="1"
+                  value={selection.quantidade}
+                  onChange={handleSelectionChange}
+                />
+              </label>
+            </div>
+
+            <div className="form-actions" style={{ justifyContent: 'space-between' }}>
+              <button type="button" className="secondary-button" onClick={handleAdicionarProduto}>
+                Adicionar produto
+              </button>
+              <button type="submit" className="primary-button" disabled={saving}>
+                {saving ? 'Salvando...' : 'Salvar pedido'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: '24px' }}>
