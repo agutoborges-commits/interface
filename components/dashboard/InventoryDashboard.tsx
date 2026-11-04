@@ -72,9 +72,11 @@ export function InventoryDashboard() {
           <Link href="/conferencia">Conferência</Link>
           <Link href="/fornecedores">Fornecedores</Link>
           <Link href="/usuarios">Usuários</Link>
+          <Link href="/login">Login</Link>
         </nav>
 
         <div className="header-actions">
+          <Link href="/login" className="secondary-button link-button">Novo login</Link>
           <Link href="/pedidos" className="secondary-button link-button">Novo pedido</Link>
           <Link href="/produtos" className="primary-button link-button">Novo produto</Link>
         </div>

@@ -31,6 +31,7 @@ export type Usuario = {
   email: string;
   cargo: string;
   ativo: boolean;
+  senha?: string;
   dataCadastro?: string | null;
 };
 
