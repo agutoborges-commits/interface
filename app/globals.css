@@ -288,40 +288,27 @@ button {
   color: #d9485f;
 }
 
-.movement-list {
+.summary-list {
   display: grid;
-  gap: 16px;
-}
-
-.movement-item {
-  display: flex;
   gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid #eef2f7;
 }
 
-.movement-item:last-child {
-  border-bottom: none;
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f8f9fc;
+  border: 1px solid #eef2f7;
 }
 
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #0066cc;
-  margin-top: 7px;
-  flex-shrink: 0;
-}
-
-.movement-item strong {
-  display: block;
-  margin-bottom: 4px;
-}
-
-.movement-item p,
-.movement-item small {
-  margin: 0;
+.summary-item span {
   color: #6e6e73;
+}
+
+.summary-item strong {
+  font-size: 1.2rem;
 }
 
 @media (max-width: 980px) {

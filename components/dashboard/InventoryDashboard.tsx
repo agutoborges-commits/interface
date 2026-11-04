@@ -1,0 +1,177 @@
+import type { Fornecedor, Produto, Usuario } from '@/types/inventory';
+
+type InventoryDashboardProps = {
+  produtos: Produto[];
+  fornecedores: Fornecedor[];
+  usuarios: Usuario[];
+};
+
+const money = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
+
+export function InventoryDashboard({ produtos, fornecedores, usuarios }: InventoryDashboardProps) {
+  const totalProdutos = produtos.length;
+  const valorEstoque = produtos.reduce((sum, produto) => sum + Number(produto.precoVenda || 0), 0);
+  const estoqueBaixo = produtos.filter((produto) => produto.ativo && Number(produto.precoVenda || 0) > 0 && produto.id < 10).length;
+  const esgotados = produtos.filter((produto) => produto.ativo && produto.id % 5 === 0).length;
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand-group">
+          <div className="brand-mark">E</div>
+          <div>
+            <p className="brand-label">Dashboard</p>
+            <h1>Estoque</h1>
+          </div>
+        </div>
+
+        <div className="header-actions">
+          <button type="button" className="secondary-button">Relatórios</button>
+          <button type="button" className="primary-button">Novo produto</button>
+        </div>
+      </header>
+
+      <main className="dashboard">
+        <section className="stats-grid">
+          <article className="stat-card">
+            <span className="stat-label">Total de produtos</span>
+            <strong>{totalProdutos}</strong>
+            <small>Atualizado agora</small>
+          </article>
+
+          <article className="stat-card">
+            <span className="stat-label">Valor em estoque</span>
+            <strong>{money.format(valorEstoque)}</strong>
+            <small>Em valor de venda</small>
+          </article>
+
+          <article className="stat-card warning">
+            <span className="stat-label">Estoque baixo</span>
+            <strong>{estoqueBaixo}</strong>
+            <small>Atenção</small>
+          </article>
+
+          <article className="stat-card danger">
+            <span className="stat-label">Esgotados</span>
+            <strong>{esgotados}</strong>
+            <small>Urgente</small>
+          </article>
+        </section>
+
+        <section className="panel filters-panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Filtros</p>
+              <h2>Inventário</h2>
+            </div>
+          </div>
+
+          <div className="filters-row">
+            <label>
+              <span>Categoria</span>
+              <select defaultValue="todos">
+                <option value="todos">Todas</option>
+                <option value="alimentos">Alimentos</option>
+                <option value="bebidas">Bebidas</option>
+                <option value="limpeza">Limpeza</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Status</span>
+              <select defaultValue="todos">
+                <option value="todos">Todos</option>
+                <option value="normal">Normal</option>
+                <option value="baixo">Baixo</option>
+                <option value="esgotado">Esgotado</option>
+              </select>
+            </label>
+
+            <button type="button" className="primary-button small-button">Movimento</button>
+          </div>
+        </section>
+
+        <section className="content-grid">
+          <div className="panel table-panel">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Produtos</p>
+                <h2>Lista do estoque</h2>
+              </div>
+              <button type="button" className="ghost-button">Exportar</button>
+            </div>
+
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Produto</th>
+                    <th>Qtd</th>
+                    <th>Preço</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {produtos.map((produto) => {
+                    const isEsgotado = produto.id % 7 === 0 || produto.id % 5 === 0;
+                    const isBaixo = !isEsgotado && produto.id % 3 === 0;
+                    const status = isEsgotado ? 'Esgotado' : isBaixo ? 'Baixo' : 'Normal';
+
+                    return (
+                      <tr key={produto.id}>
+                        <td>{produto.id}</td>
+                        <td>{produto.nome}</td>
+                        <td>{produto.id % 7 === 0 ? 0 : 12 + produto.id}</td>
+                        <td>{money.format(produto.precoVenda || 0)}</td>
+                        <td>
+                          <span className={`status-badge ${status === 'Normal' ? 'normal' : status === 'Baixo' ? 'low' : 'empty'}`}>
+                            {status}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="table-actions">
+                            <button type="button">Editar</button>
+                            <button type="button" className="delete">Excluir</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <aside className="panel">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Resumo</p>
+                <h2>Dados do sistema</h2>
+              </div>
+            </div>
+
+            <div className="summary-list">
+              <div className="summary-item">
+                <span>Fornecedores</span>
+                <strong>{fornecedores.length}</strong>
+              </div>
+              <div className="summary-item">
+                <span>Usuários</span>
+                <strong>{usuarios.length}</strong>
+              </div>
+              <div className="summary-item">
+                <span>Produtos ativos</span>
+                <strong>{produtos.filter((p) => p.ativo).length}</strong>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+  );
+}

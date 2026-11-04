@@ -1,0 +1,15 @@
+C:\Users\Augusto_w_borges\Documents\interface\bin\Debug\net9.0\interface.exe
+C:\Users\Augusto_w_borges\Documents\interface\bin\Debug\net9.0\interface.deps.json
+C:\Users\Augusto_w_borges\Documents\interface\bin\Debug\net9.0\interface.runtimeconfig.json
+C:\Users\Augusto_w_borges\Documents\interface\bin\Debug\net9.0\interface.dll
+C:\Users\Augusto_w_borges\Documents\interface\bin\Debug\net9.0\interface.pdb
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.AssemblyInfoInputs.cache
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.AssemblyInfo.cs
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.csproj.CoreCompileInputs.cache
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.sourcelink.json
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.dll
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\refint\interface.dll
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.pdb
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.genruntimeconfig.cache
+C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\ref\interface.dll
