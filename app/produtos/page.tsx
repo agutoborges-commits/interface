@@ -5,7 +5,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
 import type { Produto, Usuario } from '@/types/inventory';
 
-const allowedRoles = ['CEO', 'ADMINISTRADOR', 'GERENTE', 'SUPERVISOR'];
+const allowedRoles = ['GERENTE'];
 
 const initialForm = {
   nome: '',
@@ -149,7 +149,7 @@ export default function ProdutosPage() {
 
         {!isAutorizado ? (
           <div className="message error">
-            Acesso restrito. Apenas usuários com cargo de CEO, gerente, administrador ou supervisor podem adicionar produtos.
+            Acesso restrito. Apenas usuários com cargo de gerente podem adicionar produtos.
           </div>
         ) : (
           <form onSubmit={handleSubmit}>

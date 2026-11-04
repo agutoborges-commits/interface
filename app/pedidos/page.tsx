@@ -72,7 +72,6 @@ export default function PedidosPage() {
   const usuarioAtual = usuarios.find((usuario) => usuario.id === usuarioSelecionadoId) ?? null;
   const isAutorizado = !!usuarioAtual && (
     usuarioAtual.cargo.toUpperCase().includes('FILIAL') ||
-    usuarioAtual.cargo.toUpperCase().includes('LOJA') ||
     usuarioAtual.cargo.toUpperCase().includes('GERENTE')
   );
 
@@ -182,7 +181,7 @@ export default function PedidosPage() {
     if (!isAutorizado) {
       setMessage({
         type: 'error',
-        text: 'Acesso restrito. Somente usuários de filial/loja podem criar pedidos.',
+        text: 'Acesso restrito. Somente usuários de filial ou gerente podem criar pedidos.',
       });
       return;
     }
@@ -280,7 +279,7 @@ export default function PedidosPage() {
 
         {!isAutorizado ? (
           <div className="message error">
-            Acesso restrito. Apenas usuários de filial/loja podem criar pedidos.
+            Acesso restrito. Apenas usuários de filial ou gerente podem criar pedidos.
           </div>
         ) : (
           <form onSubmit={handleSubmit}>

@@ -5,13 +5,13 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
 import type { Usuario } from '@/types/inventory';
 
-const allowedRoles = ['CEO', 'GERENTE', 'FILIAL', 'LOJA', 'SUPERVISOR', 'ADMINISTRADOR'];
+const allowedRoles = ['TRABALHADOR', 'FILIAL', 'GERENTE'];
 
 const emptyRegister = {
   nome: '',
   email: '',
   senha: '',
-  cargo: 'FILIAL',
+  cargo: 'TRABALHADOR',
 };
 
 const emptyLogin = {
@@ -71,7 +71,7 @@ export default function LoginPage() {
 
     const cargo = registerForm.cargo.toUpperCase();
     if (!allowedRoles.some((role) => cargo.includes(role))) {
-      setMessage({ type: 'error', text: 'Cargo inválido. Use um cargo como FILIAL, GERENTE, CEO, SUPERVISOR ou ADMINISTRADOR.' });
+      setMessage({ type: 'error', text: 'Cargo inválido. Use um cargo como TRABALHADOR, FILIAL ou GERENTE.' });
       return;
     }
 
@@ -182,12 +182,9 @@ export default function LoginPage() {
             <label className="form-field full-width">
               <span>Cargo</span>
               <select value={registerForm.cargo} onChange={(event) => handleRegisterChange('cargo', event.target.value)}>
+                <option value="TRABALHADOR">Trabalhador</option>
                 <option value="FILIAL">Filial</option>
-                <option value="LOJA">Loja</option>
                 <option value="GERENTE">Gerente</option>
-                <option value="SUPERVISOR">Supervisor</option>
-                <option value="ADMINISTRADOR">Administrador</option>
-                <option value="CEO">CEO</option>
               </select>
             </label>
 
