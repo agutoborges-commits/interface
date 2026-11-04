@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+*.log
+npm-debug.log*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Ambiente local
+.env
+.env.local
+.env.*.local
