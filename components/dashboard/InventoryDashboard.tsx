@@ -68,13 +68,14 @@ export function InventoryDashboard() {
         <nav className="main-nav" aria-label="Navegação principal">
           <Link href="/">Dashboard</Link>
           <Link href="/produtos">Produtos</Link>
+          <Link href="/pedidos">Pedidos</Link>
           <Link href="/fornecedores">Fornecedores</Link>
           <Link href="/usuarios">Usuários</Link>
         </nav>
 
         <div className="header-actions">
-          <button type="button" className="secondary-button">Relatórios</button>
-          <button type="button" className="primary-button">Novo produto</button>
+          <Link href="/pedidos" className="secondary-button link-button">Novo pedido</Link>
+          <Link href="/produtos" className="primary-button link-button">Novo produto</Link>
         </div>
       </header>
 

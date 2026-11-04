@@ -31,3 +31,13 @@ export type Usuario = {
   ativo: boolean;
   dataCadastro?: string | null;
 };
+
+export type Pedido = {
+  id: number;
+  numeroPedido: string;
+  filialId: number;
+  status: string;
+  valorTotal: number;
+  dataPedido?: string | null;
+  observacao?: string | null;
+};
