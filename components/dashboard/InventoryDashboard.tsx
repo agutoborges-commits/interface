@@ -45,7 +45,9 @@ export function InventoryDashboard() {
   }, []);
 
   const userRole = normalizeRole(sessionUser?.cargo);
-  const canAddProducts = hasAnyRole(userRole, ['GERENTE', 'CEO']);
+  const canManageProducts = hasAnyRole(userRole, ['GERENTE', 'CEO']);
+  const canViewInventory = hasAnyRole(userRole, ['GERENTE', 'CEO', 'CONFERENTE']);
+  const canViewFiliais = hasAnyRole(userRole, ['GERENTE', 'CEO']);
   const canCreateOrders = hasAnyRole(userRole, ['FILIAL', 'GERENTE', 'CEO']);
   const canViewConferencia = hasAnyRole(userRole, ['CONFERENTE', 'GERENTE', 'CEO']);
   const canViewUsers = hasAnyRole(userRole, ['GERENTE', 'CEO']);
@@ -79,10 +81,10 @@ export function InventoryDashboard() {
 
         <nav className="main-nav" aria-label="Navegação principal">
           <Link href="/">Dashboard</Link>
-          {canAddProducts && <Link href="/produtos">Produtos</Link>}
+          {canViewInventory && <Link href="/produtos">Produtos</Link>}
           {canCreateOrders && <Link href="/pedidos">Pedidos</Link>}
           {canViewConferencia && <Link href="/conferencia">Conferência</Link>}
-          <Link href="/fornecedores">Fornecedores</Link>
+          {canViewFiliais && <Link href="/fornecedores">Filiais</Link>}
           {canViewUsers && <Link href="/usuarios">Usuários</Link>}
           {!sessionUser && <Link href="/login">Login</Link>}
         </nav>
@@ -106,7 +108,7 @@ export function InventoryDashboard() {
             <Link href="/login" className="secondary-button link-button">Novo login</Link>
           )}
           {canCreateOrders && <Link href="/pedidos" className="secondary-button link-button">Novo pedido</Link>}
-          {canAddProducts && <Link href="/produtos" className="primary-button link-button">Novo produto</Link>}
+          {canManageProducts && <Link href="/produtos" className="primary-button link-button">Novo produto</Link>}
         </div>
       </header>
 
