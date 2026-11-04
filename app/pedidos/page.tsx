@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
 import type { Pedido, Produto, Usuario } from '@/types/inventory';
 
 const createNumeroPedido = () => `PED-${Date.now().toString().slice(-6)}`;
@@ -66,14 +67,16 @@ export default function PedidosPage() {
   }
 
   useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      window.location.href = '/login';
+      return;
+    }
     loadPedidos();
   }, []);
 
-  const usuarioAtual = usuarios.find((usuario) => usuario.id === usuarioSelecionadoId) ?? null;
-  const isAutorizado = !!usuarioAtual && (
-    usuarioAtual.cargo.toUpperCase().includes('FILIAL') ||
-    usuarioAtual.cargo.toUpperCase().includes('GERENTE')
-  );
+  const usuarioAtual = usuarios.find((usuario) => usuario.id === usuarioSelecionadoId) ?? getCurrentUser() ?? null;
+  const isAutorizado = !!usuarioAtual && hasAnyRole(normalizeRole(usuarioAtual.cargo), ['FILIAL', 'GERENTE', 'CEO']);
 
   function handleFieldChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = event.target;
@@ -181,7 +184,7 @@ export default function PedidosPage() {
     if (!isAutorizado) {
       setMessage({
         type: 'error',
-        text: 'Acesso restrito. Somente usuários de filial ou gerente podem criar pedidos.',
+        text: 'Acesso restrito. Somente usuários de filial, gerente ou CEO podem criar pedidos.',
       });
       return;
     }
@@ -279,7 +282,7 @@ export default function PedidosPage() {
 
         {!isAutorizado ? (
           <div className="message error">
-            Acesso restrito. Apenas usuários de filial ou gerente podem criar pedidos.
+            Acesso restrito. Apenas usuários de filial, gerente ou CEO podem criar pedidos.
           </div>
         ) : (
           <form onSubmit={handleSubmit}>

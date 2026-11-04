@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import { ROLE_OPTIONS, saveCurrentUser } from '@/lib/auth';
 import type { Usuario } from '@/types/inventory';
 
-const allowedRoles = ['TRABALHADOR', 'FILIAL', 'GERENTE'];
+const allowedRoles = ['TRABALHADOR', 'FILIAL', 'GERENTE', 'CONFERENTE', 'CEO'];
 
 const emptyRegister = {
   nome: '',
@@ -71,7 +72,7 @@ export default function LoginPage() {
 
     const cargo = registerForm.cargo.toUpperCase();
     if (!allowedRoles.some((role) => cargo.includes(role))) {
-      setMessage({ type: 'error', text: 'Cargo inválido. Use um cargo como TRABALHADOR, FILIAL ou GERENTE.' });
+      setMessage({ type: 'error', text: 'Cargo inválido. Use um cargo como TRABALHADOR, FILIAL, GERENTE, CONFERENTE ou CEO.' });
       return;
     }
 
@@ -134,7 +135,7 @@ export default function LoginPage() {
       cargo: usuarioEncontrado.cargo,
     };
 
-    localStorage.setItem('stock-auth-user', JSON.stringify(sessionUser));
+    saveCurrentUser(sessionUser);
     setMessage({
       type: 'success',
       text: `Login realizado com sucesso. Bem-vindo, ${usuarioEncontrado.nome}.`,
@@ -182,9 +183,11 @@ export default function LoginPage() {
             <label className="form-field full-width">
               <span>Cargo</span>
               <select value={registerForm.cargo} onChange={(event) => handleRegisterChange('cargo', event.target.value)}>
-                <option value="TRABALHADOR">Trabalhador</option>
-                <option value="FILIAL">Filial</option>
-                <option value="GERENTE">Gerente</option>
+                {ROLE_OPTIONS.map((role) => (
+                  <option key={role.value} value={role.value}>
+                    {role.label}
+                  </option>
+                ))}
               </select>
             </label>
 

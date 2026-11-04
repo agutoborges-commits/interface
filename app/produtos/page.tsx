@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
+import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
 import type { Produto, Usuario } from '@/types/inventory';
 
-const allowedRoles = ['GERENTE'];
+const allowedRoles = ['GERENTE', 'CEO'];
 
 const initialForm = {
   nome: '',
@@ -50,13 +51,16 @@ export default function ProdutosPage() {
   }
 
   useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      window.location.href = '/login';
+      return;
+    }
     loadProdutos();
   }, []);
 
-  const usuarioAtual = usuarios.find((usuario) => usuario.id === usuarioSelecionadoId) ?? null;
-  const isAutorizado = !!usuarioAtual && allowedRoles.some((role) =>
-    usuarioAtual.cargo.toUpperCase().includes(role),
-  );
+  const usuarioAtual = usuarios.find((usuario) => usuario.id === usuarioSelecionadoId) ?? getCurrentUser() ?? null;
+  const isAutorizado = !!usuarioAtual && hasAnyRole(normalizeRole(usuarioAtual.cargo), allowedRoles);
 
   function handleFieldChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement;
@@ -149,7 +153,7 @@ export default function ProdutosPage() {
 
         {!isAutorizado ? (
           <div className="message error">
-            Acesso restrito. Apenas usuários com cargo de gerente podem adicionar produtos.
+            Acesso restrito. Apenas usuários com cargo de gerente ou CEO podem adicionar produtos.
           </div>
         ) : (
           <form onSubmit={handleSubmit}>

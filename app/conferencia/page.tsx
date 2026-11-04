@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '@/lib/api';
+import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
 import type { Pedido } from '@/types/inventory';
 
 export default function ConferenciaPage() {
@@ -38,8 +39,30 @@ export default function ConferenciaPage() {
   }
 
   useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      window.location.href = '/login';
+      return;
+    }
     loadPedidos();
   }, []);
+
+  const usuarioAtual = getCurrentUser();
+  const isAutorizado = !!usuarioAtual && hasAnyRole(normalizeRole(usuarioAtual.cargo), ['CONFERENTE', 'GERENTE', 'CEO']);
+
+  if (!isAutorizado) {
+    return (
+      <main className="page-shell">
+        <div className="page-header">
+          <h1>Conferência</h1>
+          <Link href="/" className="secondary-button link-button">Voltar ao dashboard</Link>
+        </div>
+        <div className="message error">
+          Acesso restrito. Apenas conferentes, gerentes ou CEO podem acessar a conferência.
+        </div>
+      </main>
+    );
+  }
 
   const pedidosRecebidos = pedidos.length;
   const pedidosParaConferencia = useMemo(

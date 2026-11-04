@@ -3,6 +3,8 @@
 import { apiFetch } from '@/lib/api';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { clearCurrentUser, getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
+import type { AuthUser } from '@/lib/auth';
 import type { Fornecedor, Produto, Usuario } from '@/types/inventory';
 
 const money = new Intl.NumberFormat('pt-BR', {
@@ -14,9 +16,13 @@ export function InventoryDashboard() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [sessionUser, setSessionUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const authUser = getCurrentUser();
+    setSessionUser(authUser);
+
     async function loadData() {
       try {
         const [produtosData, fornecedoresData, usuariosData] = await Promise.all([
@@ -37,6 +43,12 @@ export function InventoryDashboard() {
 
     loadData();
   }, []);
+
+  const userRole = normalizeRole(sessionUser?.cargo);
+  const canAddProducts = hasAnyRole(userRole, ['GERENTE', 'CEO']);
+  const canCreateOrders = hasAnyRole(userRole, ['FILIAL', 'GERENTE', 'CEO']);
+  const canViewConferencia = hasAnyRole(userRole, ['CONFERENTE', 'GERENTE', 'CEO']);
+  const canViewUsers = hasAnyRole(userRole, ['GERENTE', 'CEO']);
 
   const totalProdutos = produtos.length;
   const valorEstoque = useMemo(
@@ -67,18 +79,34 @@ export function InventoryDashboard() {
 
         <nav className="main-nav" aria-label="Navegação principal">
           <Link href="/">Dashboard</Link>
-          <Link href="/produtos">Produtos</Link>
-          <Link href="/pedidos">Pedidos</Link>
-          <Link href="/conferencia">Conferência</Link>
+          {canAddProducts && <Link href="/produtos">Produtos</Link>}
+          {canCreateOrders && <Link href="/pedidos">Pedidos</Link>}
+          {canViewConferencia && <Link href="/conferencia">Conferência</Link>}
           <Link href="/fornecedores">Fornecedores</Link>
-          <Link href="/usuarios">Usuários</Link>
-          <Link href="/login">Login</Link>
+          {canViewUsers && <Link href="/usuarios">Usuários</Link>}
+          {!sessionUser && <Link href="/login">Login</Link>}
         </nav>
 
         <div className="header-actions">
-          <Link href="/login" className="secondary-button link-button">Novo login</Link>
-          <Link href="/pedidos" className="secondary-button link-button">Novo pedido</Link>
-          <Link href="/produtos" className="primary-button link-button">Novo produto</Link>
+          {sessionUser ? (
+            <>
+              <span style={{ fontSize: '0.82rem', color: '#42526e', fontWeight: 600 }}>{sessionUser.nome} · {sessionUser.cargo}</span>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  clearCurrentUser();
+                  window.location.href = '/login';
+                }}
+              >
+                Sair
+              </button>
+            </>
+          ) : (
+            <Link href="/login" className="secondary-button link-button">Novo login</Link>
+          )}
+          {canCreateOrders && <Link href="/pedidos" className="secondary-button link-button">Novo pedido</Link>}
+          {canAddProducts && <Link href="/produtos" className="primary-button link-button">Novo produto</Link>}
         </div>
       </header>
 
