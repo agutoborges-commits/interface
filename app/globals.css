@@ -303,6 +303,12 @@ button {
   color: #d9485f;
 }
 
+.row-alert td {
+  background: #fff1f2;
+  color: #a42f42;
+  font-weight: 600;
+}
+
 .summary-list {
   display: grid;
   gap: 12px;

@@ -1,23 +1,37 @@
 "use client";
 
 import Link from 'next/link';
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
-import type { Pedido } from '@/types/inventory';
+import type { Pedido, Produto } from '@/types/inventory';
 
 const createNumeroPedido = () => `PED-${Date.now().toString().slice(-6)}`;
+
+const enrichProdutos = (items: Produto[]): Produto[] =>
+  items.map((produto, index) => ({
+    ...produto,
+    estoqueAtual: produto.estoqueAtual ?? Math.max(2, 12 + (index % 6) * 3),
+    estoqueMinimo: produto.estoqueMinimo ?? Math.max(2, 5 + (index % 3)),
+  }));
 
 const initialForm = {
   numeroPedido: createNumeroPedido(),
   filialId: 1,
   status: 'EmConferencia',
-  valorTotal: '0',
   observacao: '',
+};
+
+const initialSelection = {
+  produtoId: '',
+  quantidade: '1',
 };
 
 export default function PedidosPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [form, setForm] = useState(initialForm);
+  const [selection, setSelection] = useState(initialSelection);
+  const [itensPedido, setItensPedido] = useState<Array<{ id: number; produtoId: number; nome: string; quantidade: number; precoVenda: number; estoqueAtual: number; estoqueMinimo: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [conferidos, setConferidos] = useState<Record<number, boolean>>({});
@@ -25,8 +39,13 @@ export default function PedidosPage() {
 
   async function loadPedidos() {
     try {
-      const data = await apiFetch<Pedido[]>('/api/pedidos');
-      setPedidos(data);
+      const [pedidosData, produtosData] = await Promise.all([
+        apiFetch<Pedido[]>('/api/pedidos'),
+        apiFetch<Produto[]>('/api/produtos'),
+      ]);
+
+      setPedidos(pedidosData);
+      setProdutos(enrichProdutos(produtosData));
     } catch (error) {
       console.error('Erro ao carregar pedidos:', error);
       setMessage({
@@ -50,8 +69,109 @@ export default function PedidosPage() {
     }));
   }
 
+  function handleSelectionChange(event: ChangeEvent<HTMLSelectElement | HTMLInputElement>) {
+    const { name, value } = event.target;
+    setSelection((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function handleAdicionarProduto() {
+    const produtoId = Number(selection.produtoId);
+    const quantidade = Number(selection.quantidade || 0);
+
+    if (!produtoId || quantidade <= 0) {
+      setMessage({
+        type: 'error',
+        text: 'Selecione um produto e informe uma quantidade válida.',
+      });
+      return;
+    }
+
+    const produtoSelecionado = produtos.find((produto) => produto.id === produtoId);
+
+    if (!produtoSelecionado) {
+      setMessage({
+        type: 'error',
+        text: 'Produto não encontrado no estoque.',
+      });
+      return;
+    }
+
+    const estoqueAtual = Number(produtoSelecionado.estoqueAtual ?? 0);
+    const estoqueMinimo = Number(produtoSelecionado.estoqueMinimo ?? 0);
+
+    if (quantidade > estoqueAtual) {
+      setMessage({
+        type: 'error',
+        text: `A quantidade solicitada excede o estoque disponível (${estoqueAtual} unidades).`,
+      });
+      return;
+    }
+
+    setItensPedido((current) => {
+      const existente = current.find((item) => item.produtoId === produtoId);
+
+      if (existente) {
+        return current.map((item) =>
+          item.produtoId === produtoId
+            ? { ...item, quantidade: item.quantidade + quantidade }
+            : item,
+        );
+      }
+
+      return [
+        ...current,
+        {
+          id: produtoSelecionado.id,
+          produtoId: produtoSelecionado.id,
+          nome: produtoSelecionado.nome,
+          quantidade,
+          precoVenda: Number(produtoSelecionado.precoVenda || 0),
+          estoqueAtual,
+          estoqueMinimo,
+        },
+      ];
+    });
+
+    setSelection(initialSelection);
+    setMessage({
+      type: 'success',
+      text: `${produtoSelecionado.nome} adicionado ao pedido.`,
+    });
+  }
+
+  function handleRemoverItem(produtoId: number) {
+    setItensPedido((current) => current.filter((item) => item.produtoId !== produtoId));
+  }
+
+  const valorTotalPedido = useMemo(
+    () => itensPedido.reduce((sum, item) => sum + item.quantidade * item.precoVenda, 0),
+    [itensPedido],
+  );
+
+  const itensCriticos = useMemo(
+    () => produtos.filter((produto) => Number(produto.estoqueAtual ?? 0) <= Number(produto.estoqueMinimo ?? 0)).length,
+    [produtos],
+  );
+
+  const semEstoque = useMemo(
+    () => produtos.filter((produto) => Number(produto.estoqueAtual ?? 0) === 0).length,
+    [produtos],
+  );
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!itensPedido.length) {
+      setMessage({
+        type: 'error',
+        text: 'Adicione pelo menos um produto ao pedido antes de salvar.',
+      });
+      return;
+    }
+
     setSaving(true);
     setMessage(null);
 
@@ -60,8 +180,8 @@ export default function PedidosPage() {
         numeroPedido: form.numeroPedido || createNumeroPedido(),
         filialId: Number(form.filialId || 1),
         status: form.status || 'EmConferencia',
-        valorTotal: Number(form.valorTotal || 0),
-        observacao: form.observacao || null,
+        valorTotal: valorTotalPedido,
+        observacao: form.observacao || `Itens: ${itensPedido.map((item) => `${item.nome} (${item.quantidade})`).join(', ')}`,
       };
 
       const pedidoCriado = await apiFetch<Pedido>('/api/pedidos', {
@@ -70,10 +190,12 @@ export default function PedidosPage() {
       });
 
       setPedidos((current) => [pedidoCriado, ...current]);
+      setItensPedido([]);
       setForm({
         ...initialForm,
         numeroPedido: createNumeroPedido(),
       });
+      setSelection(initialSelection);
       setMessage({
         type: 'success',
         text: `Pedido ${pedidoCriado.numeroPedido} criado com sucesso.`,
@@ -149,18 +271,6 @@ export default function PedidosPage() {
               </select>
             </label>
 
-            <label className="form-field">
-              <span>Valor total</span>
-              <input
-                name="valorTotal"
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.valorTotal}
-                onChange={handleFieldChange}
-              />
-            </label>
-
             <label className="form-field full-width">
               <span>Observação</span>
               <textarea
@@ -172,12 +282,129 @@ export default function PedidosPage() {
             </label>
           </div>
 
-          <div className="form-actions">
+          <div className="panel-header" style={{ marginTop: '20px' }}>
+            <div>
+              <p className="eyebrow">Itens</p>
+              <h2>Produtos do pedido</h2>
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <label className="form-field">
+              <span>Produto</span>
+              <select name="produtoId" value={selection.produtoId} onChange={handleSelectionChange}>
+                <option value="">Selecione um produto</option>
+                {produtos.map((produto) => (
+                  <option key={produto.id} value={produto.id}>
+                    {produto.nome} ({produto.estoqueAtual ?? 0} em estoque)
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-field">
+              <span>Quantidade</span>
+              <input
+                name="quantidade"
+                type="number"
+                min="1"
+                value={selection.quantidade}
+                onChange={handleSelectionChange}
+              />
+            </label>
+          </div>
+
+          <div className="form-actions" style={{ justifyContent: 'space-between' }}>
+            <button type="button" className="secondary-button" onClick={handleAdicionarProduto}>
+              Adicionar produto
+            </button>
             <button type="submit" className="primary-button" disabled={saving}>
               {saving ? 'Salvando...' : 'Salvar pedido'}
             </button>
           </div>
         </form>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Resumo</p>
+            <h2>Estoque e alertas</h2>
+          </div>
+        </div>
+
+        <div className="stats-grid">
+          <article className="stat-card">
+            <span className="stat-label">Produtos no pedido</span>
+            <strong>{itensPedido.length}</strong>
+            <small>Itens selecionados</small>
+          </article>
+
+          <article className="stat-card">
+            <span className="stat-label">Total do pedido</span>
+            <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorTotalPedido)}</strong>
+            <small>Valor estimado</small>
+          </article>
+
+          <article className="stat-card danger">
+            <span className="stat-label">Abaixo do mínimo</span>
+            <strong>{itensCriticos}</strong>
+            <small>Produtos em alerta</small>
+          </article>
+
+          <article className="stat-card danger">
+            <span className="stat-label">Sem estoque</span>
+            <strong>{semEstoque}</strong>
+            <small>Produtos zerados</small>
+          </article>
+        </div>
+
+        <div className="table-wrap" style={{ marginTop: '18px' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Estoque</th>
+                <th>Mínimo</th>
+                <th>Status</th>
+                <th>Qtd no pedido</th>
+                <th>Valor</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {produtos.map((produto) => {
+                const estoqueAtual = Number(produto.estoqueAtual ?? 0);
+                const estoqueMinimo = Number(produto.estoqueMinimo ?? 0);
+                const abaixoDoMinimo = estoqueAtual <= estoqueMinimo;
+                const status = abaixoDoMinimo ? 'Crítico' : estoqueAtual <= estoqueMinimo + 3 ? 'Baixo' : 'Normal';
+
+                return (
+                  <tr key={produto.id} className={abaixoDoMinimo ? 'row-alert' : ''}>
+                    <td>{produto.nome}</td>
+                    <td>{estoqueAtual}</td>
+                    <td>{estoqueMinimo}</td>
+                    <td>
+                      <span className={`status-badge ${abaixoDoMinimo ? 'empty' : status === 'Baixo' ? 'low' : 'normal'}`}>
+                        {status}
+                      </span>
+                    </td>
+                    <td>{itensPedido.find((item) => item.produtoId === produto.id)?.quantidade ?? 0}</td>
+                    <td>
+                      {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      }).format(Number(produto.precoVenda || 0))}
+                    </td>
+                    <td>
+                      {itensPedido.some((item) => item.produtoId === produto.id) ? 'Incluído' : 'Disponível'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="card">
