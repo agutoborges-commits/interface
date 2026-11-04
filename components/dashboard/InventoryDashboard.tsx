@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { clearCurrentUser, getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
 import type { AuthUser } from '@/lib/auth';
-import type { Fornecedor, Produto, Usuario } from '@/types/inventory';
+import type { Fornecedor, Pedido, Produto, Usuario } from '@/types/inventory';
 
 const money = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -14,9 +14,11 @@ const money = new Intl.NumberFormat('pt-BR', {
 
 export function InventoryDashboard() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [sessionUser, setSessionUser] = useState<AuthUser | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,13 +27,15 @@ export function InventoryDashboard() {
 
     async function loadData() {
       try {
-        const [produtosData, fornecedoresData, usuariosData] = await Promise.all([
+        const [produtosData, pedidosData, fornecedoresData, usuariosData] = await Promise.all([
           apiFetch<Produto[]>('/api/produtos'),
+          apiFetch<Pedido[]>('/api/pedidos'),
           apiFetch<Fornecedor[]>('/api/fornecedores'),
           apiFetch<Usuario[]>('/api/usuarios'),
         ]);
 
         setProdutos(produtosData);
+        setPedidos(pedidosData);
         setFornecedores(fornecedoresData);
         setUsuarios(usuariosData);
       } catch (error) {
@@ -51,6 +55,37 @@ export function InventoryDashboard() {
   const canCreateOrders = hasAnyRole(userRole, ['FILIAL', 'GERENTE', 'CEO']);
   const canViewConferencia = hasAnyRole(userRole, ['CONFERENTE', 'GERENTE', 'CEO']);
   const canViewUsers = hasAnyRole(userRole, ['GERENTE', 'CEO']);
+
+  const notifications = useMemo(() => {
+    const items: Array<{ id: string; type: 'pedido' | 'estoque'; title: string; text: string; time: string }> = [];
+
+    pedidos.forEach((pedido) => {
+      items.push({
+        id: `pedido-${pedido.id}`,
+        type: 'pedido',
+        title: `Pedido da filial ${pedido.filialId}`,
+        text: `${pedido.numeroPedido} foi solicitado${pedido.dataPedido ? ` em ${new Date(pedido.dataPedido).toLocaleDateString('pt-BR')}` : ''}.`,
+        time: pedido.dataPedido ? new Date(pedido.dataPedido).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Agora',
+      });
+    });
+
+    produtos.forEach((produto) => {
+      const estoqueAtual = Number(produto.estoqueAtual ?? 0);
+      const estoqueMinimo = Number(produto.estoqueMinimo ?? 0);
+
+      if (estoqueAtual <= estoqueMinimo) {
+        items.push({
+          id: `estoque-${produto.id}`,
+          type: 'estoque',
+          title: estoqueAtual === 0 ? 'Falta no estoque' : 'Estoque abaixo do mínimo',
+          text: `${produto.nome} está com ${estoqueAtual} unidade(s) e o mínimo é ${estoqueMinimo}.`,
+          time: 'Urgente',
+        });
+      }
+    });
+
+    return items.slice(0, 8);
+  }, [pedidos, produtos]);
 
   const totalProdutos = produtos.length;
   const valorEstoque = useMemo(
@@ -90,6 +125,43 @@ export function InventoryDashboard() {
         </nav>
 
         <div className="header-actions">
+          <div className="notification-wrap">
+            <button
+              type="button"
+              className="notification-button"
+              onClick={() => setShowNotifications((current) => !current)}
+              aria-label="Notificações"
+            >
+              <span className="notification-icon">🔔</span>
+              {notifications.length > 0 && <span className="notification-badge">{notifications.length}</span>}
+            </button>
+
+            {showNotifications && (
+              <div className="notification-panel">
+                <div className="notification-header">
+                  <strong>Notificações</strong>
+                </div>
+
+                {notifications.length === 0 ? (
+                  <div className="notification-empty">Nenhuma notificação no momento.</div>
+                ) : (
+                  <ul className="notification-list">
+                    {notifications.map((notification) => (
+                      <li key={notification.id} className={`notification-item ${notification.type}`}>
+                        <div className="notification-dot" />
+                        <div className="notification-content">
+                          <strong>{notification.title}</strong>
+                          <span>{notification.text}</span>
+                          <small>{notification.time}</small>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
           {sessionUser ? (
             <>
               <span style={{ fontSize: '0.82rem', color: '#42526e', fontWeight: 600 }}>{sessionUser.nome} · {sessionUser.cargo}</span>

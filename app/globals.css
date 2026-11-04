@@ -95,6 +95,129 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
+  position: relative;
+}
+
+.notification-wrap {
+  position: relative;
+}
+
+.notification-button {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #dfe8f7;
+  border-radius: 50%;
+  background: #f5f9ff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.08);
+}
+
+.notification-icon {
+  font-size: 1.05rem;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(360px, 90vw);
+  background: white;
+  border: 1px solid #e8edf5;
+  border-radius: 18px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  z-index: 50;
+}
+
+.notification-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf2f7;
+  background: #f8fbff;
+  color: #1f2a37;
+}
+
+.notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.notification-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid transparent;
+}
+
+.notification-item.pedido {
+  background: #edf6ff;
+  border-color: #d7ebff;
+}
+
+.notification-item.estoque {
+  background: #fff4f2;
+  border-color: #ffd6d0;
+}
+
+.notification-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-top: 7px;
+}
+
+.notification-item.pedido .notification-dot { color: #2563eb; }
+.notification-item.estoque .notification-dot { color: #dc2626; }
+
+.notification-content {
+  display: grid;
+  gap: 4px;
+  color: #1f2937;
+}
+
+.notification-content strong {
+  font-size: 0.9rem;
+}
+
+.notification-content span,
+.notification-content small {
+  color: #58677b;
+  line-height: 1.4;
+}
+
+.notification-content small {
+  font-size: 0.7rem;
+}
+
+.notification-empty {
+  padding: 18px 16px;
+  color: #627089;
+  font-size: 0.9rem;
 }
 
 .primary-button,
