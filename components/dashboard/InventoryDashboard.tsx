@@ -1,21 +1,58 @@
-import type { Fornecedor, Produto, Usuario } from '@/types/inventory';
+"use client";
 
-type InventoryDashboardProps = {
-  produtos: Produto[];
-  fornecedores: Fornecedor[];
-  usuarios: Usuario[];
-};
+import { apiFetch } from '@/lib/api';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import type { Fornecedor, Produto, Usuario } from '@/types/inventory';
 
 const money = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
 });
 
-export function InventoryDashboard({ produtos, fornecedores, usuarios }: InventoryDashboardProps) {
+export function InventoryDashboard() {
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [produtosData, fornecedoresData, usuariosData] = await Promise.all([
+          apiFetch<Produto[]>('/api/produtos'),
+          apiFetch<Fornecedor[]>('/api/fornecedores'),
+          apiFetch<Usuario[]>('/api/usuarios'),
+        ]);
+
+        setProdutos(produtosData);
+        setFornecedores(fornecedoresData);
+        setUsuarios(usuariosData);
+      } catch (error) {
+        console.error('Erro ao carregar dados do dashboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, []);
+
   const totalProdutos = produtos.length;
-  const valorEstoque = produtos.reduce((sum, produto) => sum + Number(produto.precoVenda || 0), 0);
-  const estoqueBaixo = produtos.filter((produto) => produto.ativo && Number(produto.precoVenda || 0) > 0 && produto.id < 10).length;
+  const valorEstoque = useMemo(
+    () => produtos.reduce((sum, produto) => sum + Number(produto.precoVenda || 0), 0),
+    [produtos],
+  );
+  const estoqueBaixo = produtos.filter((produto) => produto.ativo && produto.id % 3 === 0).length;
   const esgotados = produtos.filter((produto) => produto.ativo && produto.id % 5 === 0).length;
+
+  if (loading) {
+    return (
+      <div className="page-shell">
+        <div className="card loading-card">Carregando dados do estoque...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -27,6 +64,13 @@ export function InventoryDashboard({ produtos, fornecedores, usuarios }: Invento
             <h1>Estoque</h1>
           </div>
         </div>
+
+        <nav className="main-nav" aria-label="Navegação principal">
+          <Link href="/">Dashboard</Link>
+          <Link href="/produtos">Produtos</Link>
+          <Link href="/fornecedores">Fornecedores</Link>
+          <Link href="/usuarios">Usuários</Link>
+        </nav>
 
         <div className="header-actions">
           <button type="button" className="secondary-button">Relatórios</button>
@@ -101,7 +145,7 @@ export function InventoryDashboard({ produtos, fornecedores, usuarios }: Invento
                 <p className="eyebrow">Produtos</p>
                 <h2>Lista do estoque</h2>
               </div>
-              <button type="button" className="ghost-button">Exportar</button>
+              <Link href="/produtos" className="ghost-button inline-link">Ver todos</Link>
             </div>
 
             <div className="table-wrap">
@@ -113,12 +157,11 @@ export function InventoryDashboard({ produtos, fornecedores, usuarios }: Invento
                     <th>Qtd</th>
                     <th>Preço</th>
                     <th>Status</th>
-                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {produtos.map((produto) => {
-                    const isEsgotado = produto.id % 7 === 0 || produto.id % 5 === 0;
+                  {produtos.slice(0, 5).map((produto) => {
+                    const isEsgotado = produto.id % 5 === 0;
                     const isBaixo = !isEsgotado && produto.id % 3 === 0;
                     const status = isEsgotado ? 'Esgotado' : isBaixo ? 'Baixo' : 'Normal';
 
@@ -132,12 +175,6 @@ export function InventoryDashboard({ produtos, fornecedores, usuarios }: Invento
                           <span className={`status-badge ${status === 'Normal' ? 'normal' : status === 'Baixo' ? 'low' : 'empty'}`}>
                             {status}
                           </span>
-                        </td>
-                        <td>
-                          <div className="table-actions">
-                            <button type="button">Editar</button>
-                            <button type="button" className="delete">Excluir</button>
-                          </div>
                         </td>
                       </tr>
                     );
