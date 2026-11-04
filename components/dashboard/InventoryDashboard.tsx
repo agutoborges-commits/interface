@@ -69,6 +69,7 @@ export function InventoryDashboard() {
           <Link href="/">Dashboard</Link>
           <Link href="/produtos">Produtos</Link>
           <Link href="/pedidos">Pedidos</Link>
+          <Link href="/conferencia">Conferência</Link>
           <Link href="/fornecedores">Fornecedores</Link>
           <Link href="/usuarios">Usuários</Link>
         </nav>

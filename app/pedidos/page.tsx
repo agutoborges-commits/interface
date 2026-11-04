@@ -227,6 +227,7 @@ export default function PedidosPage() {
         <h1>Pedidos</h1>
         <div className="header-actions">
           <Link href="/" className="secondary-button link-button">Voltar ao dashboard</Link>
+          <Link href="/conferencia" className="secondary-button link-button">Conferência</Link>
           <Link href="/produtos" className="primary-button link-button">Ver produtos</Link>
         </div>
       </div>

@@ -309,6 +309,38 @@ button {
   font-weight: 600;
 }
 
+.stacked-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alert-text {
+  color: #a42f42;
+  font-size: 0.72rem;
+}
+
+.quantity-stack {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+}
+
+.mini-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: #4d5d77;
+}
+
+.mini-field input {
+  width: 100%;
+  border: 1px solid #dde3ef;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
 .summary-list {
   display: grid;
   gap: 12px;
