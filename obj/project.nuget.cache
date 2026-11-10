@@ -1,8 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "QUYAmkOnGQk=",
+  "dgSpecHash": "ureJqSKNg64=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Augusto_w_borges\\Documents\\interface\\interface.csproj",
-  "expectedPackageFiles": [],
+  "projectFilePath": "C:\\Users\\felipe_l_ferrari\\Documents\\interface\\interface.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\felipe_l_ferrari\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.20\\microsoft.netcore.app.ref.9.0.20.nupkg.sha512",
+    "C:\\Users\\felipe_l_ferrari\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.20\\microsoft.windowsdesktop.app.ref.9.0.20.nupkg.sha512",
+    "C:\\Users\\felipe_l_ferrari\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.20\\microsoft.aspnetcore.app.ref.9.0.20.nupkg.sha512",
+    "C:\\Users\\felipe_l_ferrari\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\9.0.20\\microsoft.netcore.app.host.win-x64.9.0.20.nupkg.sha512"
+  ],
   "logs": []
 }
