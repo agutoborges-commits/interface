@@ -14,6 +14,8 @@ const initialForm = {
   descricao: '',
   precoCusto: '',
   precoVenda: '',
+  idCategoria: '',
+  idFornecedor: '',
   ativo: true,
 };
 
@@ -23,6 +25,9 @@ export default function ProdutosPage() {
   const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [activeProductId, setActiveProductId] = useState<number | null>(null);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Produto | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState(initialForm);
 
@@ -73,13 +78,102 @@ export default function ProdutosPage() {
     }));
   }
 
+  async function fetchProduto(id: number) {
+    const produto = await apiFetch<Produto>(`/api/produtos/${id}`);
+    setSelectedProduct(produto);
+    return produto;
+  }
+
+  async function handleViewProduct(id: number) {
+    setActiveProductId(id);
+    setMessage(null);
+
+    try {
+      await fetchProduto(id);
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível consultar o produto.',
+      });
+    } finally {
+      setActiveProductId(null);
+    }
+  }
+
+  async function handleEditProduct(id: number) {
+    if (!isAutorizado) {
+      setMessage({ type: 'error', text: 'Apenas gerentes ou CEO podem editar produtos.' });
+      return;
+    }
+
+    setActiveProductId(id);
+    setMessage(null);
+
+    try {
+      const produto = await fetchProduto(id);
+      setEditingProductId(produto.id);
+      setForm({
+        nome: produto.nome ?? '',
+        codigoBarras: produto.codigoBarras ?? '',
+        descricao: produto.descricao ?? '',
+        precoCusto: String(produto.precoCusto ?? ''),
+        precoVenda: String(produto.precoVenda ?? ''),
+        idCategoria: produto.idCategoria == null ? '' : String(produto.idCategoria),
+        idFornecedor: produto.idFornecedor == null ? '' : String(produto.idFornecedor),
+        ativo: produto.ativo,
+      });
+      document.getElementById('product-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível carregar o produto para edição.',
+      });
+    } finally {
+      setActiveProductId(null);
+    }
+  }
+
+  async function handleDeleteProduct(produto: Produto) {
+    if (!isAutorizado) {
+      setMessage({ type: 'error', text: 'Apenas gerentes ou CEO podem excluir produtos.' });
+      return;
+    }
+
+    if (!window.confirm(`Excluir o produto "${produto.nome}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    setActiveProductId(produto.id);
+    setMessage(null);
+
+    try {
+      await apiFetch<void>(`/api/produtos/${produto.id}`, { method: 'DELETE' });
+      setProdutos((current) => current.filter((item) => item.id !== produto.id));
+      setSelectedProduct((current) => current?.id === produto.id ? null : current);
+
+      if (editingProductId === produto.id) {
+        setEditingProductId(null);
+        setForm(initialForm);
+      }
+
+      setMessage({ type: 'success', text: `Produto ${produto.nome} excluído.` });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível excluir o produto.',
+      });
+    } finally {
+      setActiveProductId(null);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!isAutorizado) {
       setMessage({
         type: 'error',
-        text: 'Acesso restrito. Somente usuários autorizados podem cadastrar produtos.',
+        text: 'Acesso restrito. Somente gerentes ou CEO podem cadastrar ou editar produtos.',
       });
       return;
     }
@@ -90,23 +184,34 @@ export default function ProdutosPage() {
     try {
       const payload = {
         nome: form.nome.trim(),
-        codigoBarras: form.codigoBarras || null,
-        descricao: form.descricao || null,
-        precoCusto: Number(form.precoCusto || 0),
-        precoVenda: Number(form.precoVenda || 0),
+        codigoBarras: form.codigoBarras.trim() || null,
+        descricao: form.descricao.trim() || null,
+        precoCusto: Number(form.precoCusto),
+        precoVenda: Number(form.precoVenda),
+        idCategoria: form.idCategoria ? Number(form.idCategoria) : null,
+        idFornecedor: form.idFornecedor ? Number(form.idFornecedor) : null,
         ativo: form.ativo,
       };
 
-      const produtoCriado = await apiFetch<Produto>('/api/produtos', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const produtoSalvo = await apiFetch<Produto>(
+        editingProductId ? `/api/produtos/${editingProductId}` : '/api/produtos',
+        {
+          method: editingProductId ? 'PUT' : 'POST',
+          body: JSON.stringify(payload),
+        },
+      );
 
-      setProdutos((current) => [produtoCriado, ...current]);
+      setProdutos((current) => editingProductId
+        ? current.map((produto) => produto.id === produtoSalvo.id ? produtoSalvo : produto)
+        : [produtoSalvo, ...current]);
+      setSelectedProduct((current) => current?.id === produtoSalvo.id ? produtoSalvo : current);
       setForm(initialForm);
+      setEditingProductId(null);
       setMessage({
         type: 'success',
-        text: `Produto ${produtoCriado.nome} cadastrado com sucesso.`,
+        text: editingProductId
+          ? `Produto ${produtoSalvo.nome} atualizado com sucesso.`
+          : `Produto ${produtoSalvo.nome} cadastrado com sucesso.`,
       });
     } catch (error) {
       setMessage({
@@ -116,6 +221,12 @@ export default function ProdutosPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleCancelEdit() {
+    setEditingProductId(null);
+    setForm(initialForm);
+    setMessage(null);
   }
 
   return (
@@ -128,11 +239,11 @@ export default function ProdutosPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: '24px' }}>
+      <div id="product-form" className="card" style={{ marginBottom: '24px' }}>
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Cadastro</p>
-            <h2>Novo produto</h2>
+            <p className="eyebrow">{editingProductId ? 'Edição' : 'Cadastro'}</p>
+            <h2>{editingProductId ? `Editar produto #${editingProductId}` : 'Novo produto'}</h2>
           </div>
         </div>
 
@@ -205,6 +316,30 @@ export default function ProdutosPage() {
                 />
               </label>
 
+              <label className="form-field">
+                <span>ID da categoria</span>
+                <input
+                  name="idCategoria"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.idCategoria}
+                  onChange={handleFieldChange}
+                />
+              </label>
+
+              <label className="form-field">
+                <span>ID do fornecedor</span>
+                <input
+                  name="idFornecedor"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.idFornecedor}
+                  onChange={handleFieldChange}
+                />
+              </label>
+
               <label className="form-field full-width">
                 <span>Descrição</span>
                 <textarea
@@ -227,8 +362,13 @@ export default function ProdutosPage() {
             </div>
 
             <div className="form-actions">
+              {editingProductId && (
+                <button type="button" className="secondary-button" onClick={handleCancelEdit} disabled={saving}>
+                  Cancelar edição
+                </button>
+              )}
               <button type="submit" className="primary-button" disabled={saving}>
-                {saving ? 'Salvando...' : 'Salvar produto'}
+                {saving ? 'Salvando...' : editingProductId ? 'Salvar alterações' : 'Salvar produto'}
               </button>
             </div>
           </form>
@@ -254,6 +394,7 @@ export default function ProdutosPage() {
                   <th>Nome</th>
                   <th>Preço venda</th>
                   <th>Ativo</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -268,6 +409,23 @@ export default function ProdutosPage() {
                       }).format(Number(produto.precoVenda || 0))}
                     </td>
                     <td>{produto.ativo ? 'Sim' : 'Não'}</td>
+                    <td>
+                      <div className="inline-actions">
+                        <button type="button" onClick={() => handleViewProduct(produto.id)} disabled={activeProductId === produto.id}>
+                          Detalhes
+                        </button>
+                        {isAutorizado && (
+                          <>
+                            <button type="button" onClick={() => handleEditProduct(produto.id)} disabled={activeProductId === produto.id || saving}>
+                              Editar
+                            </button>
+                            <button type="button" onClick={() => handleDeleteProduct(produto)} disabled={activeProductId === produto.id || saving}>
+                              Excluir
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -275,6 +433,31 @@ export default function ProdutosPage() {
           </div>
         )}
       </div>
+
+      {selectedProduct && (
+        <section className="card" aria-labelledby="product-details-title" style={{ marginTop: '24px' }}>
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Consulta por ID</p>
+              <h2 id="product-details-title">{selectedProduct.nome}</h2>
+            </div>
+            <button type="button" className="ghost-button" onClick={() => setSelectedProduct(null)} aria-label="Fechar detalhes">
+              Fechar
+            </button>
+          </div>
+          <div className="summary-list">
+            <div className="summary-item"><span>ID</span><strong>{selectedProduct.id}</strong></div>
+            <div className="summary-item"><span>Código de barras</span><strong>{selectedProduct.codigoBarras || '—'}</strong></div>
+            <div className="summary-item"><span>Descrição</span><strong>{selectedProduct.descricao || '—'}</strong></div>
+            <div className="summary-item"><span>Preço de custo</span><strong>{Number(selectedProduct.precoCusto).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
+            <div className="summary-item"><span>Preço de venda</span><strong>{Number(selectedProduct.precoVenda).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
+            <div className="summary-item"><span>Categoria / fornecedor</span><strong>{selectedProduct.idCategoria ?? '—'} / {selectedProduct.idFornecedor ?? '—'}</strong></div>
+            <div className="summary-item"><span>Estoque atual / mínimo</span><strong>{selectedProduct.estoqueAtual ?? '—'} / {selectedProduct.estoqueMinimo ?? '—'}</strong></div>
+            <div className="summary-item"><span>Status</span><strong>{selectedProduct.ativo ? 'Ativo' : 'Inativo'}</strong></div>
+            <div className="summary-item"><span>Cadastrado em</span><strong>{selectedProduct.dataCadastro ? new Date(selectedProduct.dataCadastro).toLocaleString('pt-BR') : '—'}</strong></div>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
