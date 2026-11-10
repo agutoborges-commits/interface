@@ -8,6 +8,13 @@ export type SearchableCatalogOption = {
   description?: string;
 };
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR');
+}
+
 type SearchableCatalogSelectProps = {
   label: string;
   value: string;
@@ -32,9 +39,9 @@ export function SearchableCatalogSelect({
   const selectId = useId();
   const [query, setQuery] = useState('');
   const selectedOption = options.find((option) => option.value === value);
-  const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
+  const normalizedQuery = normalizeSearchText(query.trim());
   const filteredOptions = options.filter((option) =>
-    `${option.label} ${option.description ?? ''}`.toLocaleLowerCase('pt-BR').includes(normalizedQuery),
+    normalizeSearchText(`${option.label} ${option.description ?? ''}`).includes(normalizedQuery),
   );
   const visibleOptions = selectedOption && !filteredOptions.includes(selectedOption)
     ? [selectedOption, ...filteredOptions]
