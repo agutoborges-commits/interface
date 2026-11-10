@@ -13,6 +13,14 @@ export type Produto = {
   dataCadastro?: string | null;
 };
 
+export type Categoria = {
+  id: number;
+  nome: string;
+  descricao?: string | null;
+  ativo?: boolean;
+  dataCadastro?: string | null;
+};
+
 export type Fornecedor = {
   id: number;
   razaoSocial: string;

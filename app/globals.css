@@ -590,6 +590,22 @@ button {
   color: #a42f42;
 }
 
+.searchable-select {
+  min-width: 0;
+}
+
+.searchable-select > label {
+  color: #4d5d77;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.searchable-select-empty {
+  color: #687386;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .inline-actions {
   display: flex;
   gap: 8px;

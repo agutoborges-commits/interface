@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
-import type { Produto, Usuario } from '@/types/inventory';
+import { SearchableCatalogSelect, type SearchableCatalogOption } from '@/components/products/SearchableCatalogSelect';
+import type { Categoria, Fornecedor, Produto, Usuario } from '@/types/inventory';
 
 const allowedRoles = ['GERENTE', 'CEO'];
 
@@ -22,12 +23,15 @@ const initialForm = {
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeProductId, setActiveProductId] = useState<number | null>(null);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Produto | null>(null);
+  const [catalogErrors, setCatalogErrors] = useState<{ categorias?: string; fornecedores?: string }>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState(initialForm);
 
@@ -43,6 +47,29 @@ export default function ProdutosPage() {
 
       if (!usuarioSelecionadoId && usuariosData.length > 0) {
         setUsuarioSelecionadoId(usuariosData[0].id);
+      }
+
+      const [categoriasResult, fornecedoresResult] = await Promise.allSettled([
+        apiFetch<Categoria[]>('/api/categorias'),
+        apiFetch<Fornecedor[]>('/api/fornecedores'),
+      ]);
+
+      if (categoriasResult.status === 'fulfilled') {
+        setCategorias(categoriasResult.value);
+      } else {
+        setCatalogErrors((current) => ({
+          ...current,
+          categorias: 'Não foi possível carregar as categorias. Verifique a disponibilidade da API.',
+        }));
+      }
+
+      if (fornecedoresResult.status === 'fulfilled') {
+        setFornecedores(fornecedoresResult.value);
+      } else {
+        setCatalogErrors((current) => ({
+          ...current,
+          fornecedores: 'Não foi possível carregar os fornecedores.',
+        }));
       }
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
@@ -66,6 +93,23 @@ export default function ProdutosPage() {
 
   const usuarioAtual = usuarios.find((usuario) => usuario.id === usuarioSelecionadoId) ?? getCurrentUser() ?? null;
   const isAutorizado = !!usuarioAtual && hasAnyRole(normalizeRole(usuarioAtual.cargo), allowedRoles);
+  const categoriaOptions: SearchableCatalogOption[] = categorias
+    .filter((categoria) => categoria.ativo !== false)
+    .map((categoria) => ({
+      value: String(categoria.id),
+      label: categoria.nome,
+      description: categoria.descricao ?? undefined,
+    }));
+  const fornecedorOptions: SearchableCatalogOption[] = fornecedores.map((fornecedor) => ({
+    value: String(fornecedor.id),
+    label: fornecedor.nomeFantasia || fornecedor.razaoSocial,
+    description: [
+      fornecedor.nomeFantasia && fornecedor.nomeFantasia !== fornecedor.razaoSocial ? fornecedor.razaoSocial : null,
+      fornecedor.cnpj,
+      fornecedor.email,
+      fornecedor.ativo ? null : 'Inativo',
+    ].filter(Boolean).join(' · '),
+  }));
 
   function handleFieldChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement;
@@ -316,29 +360,34 @@ export default function ProdutosPage() {
                 />
               </label>
 
-              <label className="form-field">
-                <span>ID da categoria</span>
-                <input
-                  name="idCategoria"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={form.idCategoria}
-                  onChange={handleFieldChange}
-                />
-              </label>
+              <SearchableCatalogSelect
+                label="Categoria"
+                value={form.idCategoria}
+                options={categoriaOptions}
+                placeholder="Buscar por nome ou descrição"
+                emptyLabel="Sem categoria"
+                emptyMessage={catalogErrors.categorias ? 'Catálogo indisponível' : 'Nenhuma categoria encontrada'}
+                disabled={!!catalogErrors.categorias}
+                onChange={(value) => setForm((current) => ({ ...current, idCategoria: value }))}
+              />
 
-              <label className="form-field">
-                <span>ID do fornecedor</span>
-                <input
-                  name="idFornecedor"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={form.idFornecedor}
-                  onChange={handleFieldChange}
-                />
-              </label>
+              <SearchableCatalogSelect
+                label="Fornecedor"
+                value={form.idFornecedor}
+                options={fornecedorOptions}
+                placeholder="Buscar por nome, razão social ou CNPJ"
+                emptyLabel="Sem fornecedor"
+                emptyMessage={catalogErrors.fornecedores ? 'Catálogo indisponível' : 'Nenhum fornecedor encontrado'}
+                disabled={!!catalogErrors.fornecedores}
+                onChange={(value) => setForm((current) => ({ ...current, idFornecedor: value }))}
+              />
+
+              {(catalogErrors.categorias || catalogErrors.fornecedores) && (
+                <div className="full-width">
+                  {catalogErrors.categorias && <div className="message error">{catalogErrors.categorias}</div>}
+                  {catalogErrors.fornecedores && <div className="message error">{catalogErrors.fornecedores}</div>}
+                </div>
+              )}
 
               <label className="form-field full-width">
                 <span>Descrição</span>
@@ -451,7 +500,8 @@ export default function ProdutosPage() {
             <div className="summary-item"><span>Descrição</span><strong>{selectedProduct.descricao || '—'}</strong></div>
             <div className="summary-item"><span>Preço de custo</span><strong>{Number(selectedProduct.precoCusto).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
             <div className="summary-item"><span>Preço de venda</span><strong>{Number(selectedProduct.precoVenda).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
-            <div className="summary-item"><span>Categoria / fornecedor</span><strong>{selectedProduct.idCategoria ?? '—'} / {selectedProduct.idFornecedor ?? '—'}</strong></div>
+            <div className="summary-item"><span>Categoria</span><strong>{categorias.find((categoria) => categoria.id === selectedProduct.idCategoria)?.nome ?? '—'}</strong></div>
+            <div className="summary-item"><span>Fornecedor</span><strong>{fornecedores.find((fornecedor) => fornecedor.id === selectedProduct.idFornecedor)?.nomeFantasia || fornecedores.find((fornecedor) => fornecedor.id === selectedProduct.idFornecedor)?.razaoSocial || '—'}</strong></div>
             <div className="summary-item"><span>Estoque atual / mínimo</span><strong>{selectedProduct.estoqueAtual ?? '—'} / {selectedProduct.estoqueMinimo ?? '—'}</strong></div>
             <div className="summary-item"><span>Status</span><strong>{selectedProduct.ativo ? 'Ativo' : 'Inativo'}</strong></div>
             <div className="summary-item"><span>Cadastrado em</span><strong>{selectedProduct.dataCadastro ? new Date(selectedProduct.dataCadastro).toLocaleString('pt-BR') : '—'}</strong></div>
