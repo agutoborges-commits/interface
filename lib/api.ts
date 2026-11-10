@@ -15,9 +15,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     throw new Error(errorText || 'Erro ao consultar a API');
   }
 
-  if (response.status === 204) {
+  const text = await response.text();
+
+  if (!text) {
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as unknown as T;
+  }
 }

@@ -1,0 +1,1719 @@
+﻿{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Controle de Estoque API",
+    "description": "API para gestão de fornecedores, produtos com leitor de código de barras e estoque de supermercado.",
+    "version": "v1"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "controle_de_estoque"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Fornecedores": {
+      "get": {
+        "tags": [
+          "Fornecedores"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Fornecedores"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreateFornecedorRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreateFornecedorRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreateFornecedorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Fornecedores/{id}": {
+      "get": {
+        "tags": [
+          "Fornecedores"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Fornecedores"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdateFornecedorRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdateFornecedorRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdateFornecedorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Fornecedor"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Fornecedores"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/MovimentacoesEstoque": {
+      "get": {
+        "tags": [
+          "MovimentacoesEstoque"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "MovimentacoesEstoque"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.RegistrarMovimentacaoRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.RegistrarMovimentacaoRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.RegistrarMovimentacaoRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/MovimentacoesEstoque/{id}": {
+      "get": {
+        "tags": [
+          "MovimentacoesEstoque"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/MovimentacoesEstoque/produto/{produtoId}": {
+      "get": {
+        "tags": [
+          "MovimentacoesEstoque"
+        ],
+        "parameters": [
+          {
+            "name": "produtoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.MovimentacaoEstoque"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Pedidos": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreatePedidoRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreatePedidoRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreatePedidoRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Pedidos/{id}": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Pedidos/{id}/itens": {
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.AddPedidoItemRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.AddPedidoItemRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.AddPedidoItemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Pedidos/{id}/status": {
+      "patch": {
+        "tags": [
+          "Pedidos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdatePedidoStatusRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdatePedidoStatusRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdatePedidoStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Pedido"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Pedidos/{id}/conferencia": {
+      "get": {
+        "tags": [
+          "Pedidos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.ConferenciaPedido"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.ConferenciaPedido"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.ConferenciaPedido"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pedidos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.RegistrarConferenciaRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.RegistrarConferenciaRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.RegistrarConferenciaRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Produtos": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Produtos"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreateProdutoRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreateProdutoRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreateProdutoRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Produtos/{id}": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Produtos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdateProdutoRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdateProdutoRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdateProdutoRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Produtos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Relatorios/resumo": {
+      "get": {
+        "tags": [
+          "Relatorios"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.ResumoEstoqueResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.ResumoEstoqueResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.ResumoEstoqueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Usuarios": {
+      "get": {
+        "tags": [
+          "Usuarios"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Usuarios"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreateUsuarioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreateUsuarioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.CreateUsuarioRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/Usuarios/{id}": {
+      "get": {
+        "tags": [
+          "Usuarios"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Usuarios"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdateUsuarioRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdateUsuarioRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecebimentoMercadorias.Controllers.UpdateUsuarioRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Usuario"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Usuarios"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RecebimentoMercadorias.Controllers.AddPedidoItemRequest": {
+        "type": "object",
+        "properties": {
+          "produtoId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantidade": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "precoUnitario": {
+            "type": "number",
+            "format": "double"
+          },
+          "observacao": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.CreateFornecedorRequest": {
+        "type": "object",
+        "properties": {
+          "razaoSocial": {
+            "type": "string",
+            "nullable": true
+          },
+          "nomeFantasia": {
+            "type": "string",
+            "nullable": true
+          },
+          "cnpj": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefone": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "endereco": {
+            "type": "string",
+            "nullable": true
+          },
+          "ativo": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.CreatePedidoRequest": {
+        "type": "object",
+        "properties": {
+          "numeroPedido": {
+            "type": "string",
+            "nullable": true
+          },
+          "filialId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "observacao": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.CreateProdutoRequest": {
+        "type": "object",
+        "properties": {
+          "nome": {
+            "type": "string",
+            "nullable": true
+          },
+          "codigoBarras": {
+            "type": "string",
+            "nullable": true
+          },
+          "descricao": {
+            "type": "string",
+            "nullable": true
+          },
+          "precoCusto": {
+            "type": "number",
+            "format": "double"
+          },
+          "precoVenda": {
+            "type": "number",
+            "format": "double"
+          },
+          "idCategoria": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idFornecedor": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "ativo": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.CreateUsuarioRequest": {
+        "type": "object",
+        "properties": {
+          "nome": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "cargo": {
+            "type": "string",
+            "nullable": true
+          },
+          "ativo": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.RegistrarConferenciaRequest": {
+        "type": "object",
+        "properties": {
+          "produtoId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantidadeRecebida": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "observacao": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.RegistrarMovimentacaoRequest": {
+        "type": "object",
+        "properties": {
+          "produtoId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "filialId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.TipoMovimentacao"
+          },
+          "quantidade": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "observacao": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.ResumoEstoqueResponse": {
+        "type": "object",
+        "properties": {
+          "totalFornecedores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fornecedoresAtivos": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalUsuarios": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "usuariosAtivos": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ultimoFornecedorCadastrado": {
+            "type": "string",
+            "nullable": true
+          },
+          "ultimoUsuarioCadastrado": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.UpdateFornecedorRequest": {
+        "type": "object",
+        "properties": {
+          "razaoSocial": {
+            "type": "string",
+            "nullable": true
+          },
+          "nomeFantasia": {
+            "type": "string",
+            "nullable": true
+          },
+          "cnpj": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefone": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "endereco": {
+            "type": "string",
+            "nullable": true
+          },
+          "ativo": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.UpdatePedidoStatusRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.StatusPedido"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.UpdateProdutoRequest": {
+        "type": "object",
+        "properties": {
+          "nome": {
+            "type": "string",
+            "nullable": true
+          },
+          "codigoBarras": {
+            "type": "string",
+            "nullable": true
+          },
+          "descricao": {
+            "type": "string",
+            "nullable": true
+          },
+          "precoCusto": {
+            "type": "number",
+            "format": "double"
+          },
+          "precoVenda": {
+            "type": "number",
+            "format": "double"
+          },
+          "idCategoria": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idFornecedor": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "ativo": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Controllers.UpdateUsuarioRequest": {
+        "type": "object",
+        "properties": {
+          "nome": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "cargo": {
+            "type": "string",
+            "nullable": true
+          },
+          "ativo": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Entities.ConferenciaPedido": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pedidoId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "produtoId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "produto": {
+            "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+          },
+          "quantidadeRecebida": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantidadeEsperada": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "observacao": {
+            "type": "string",
+            "nullable": true
+          },
+          "dataConferencia": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Entities.Fornecedor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "razaoSocial": {
+            "type": "string",
+            "nullable": true
+          },
+          "nomeFantasia": {
+            "type": "string",
+            "nullable": true
+          },
+          "cnpj": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefone": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "endereco": {
+            "type": "string",
+            "nullable": true
+          },
+          "ativo": {
+            "type": "boolean"
+          },
+          "dataCadastro": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Entities.MovimentacaoEstoque": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "filialId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "produtoId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "produto": {
+            "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.Produto"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.TipoMovimentacao"
+          },
+          "quantidade": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dataMovimentacao": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "observacao": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Entities.Pedido": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "numeroPedido": {
+            "type": "string",
+            "nullable": true
+          },
+          "filialId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecebimentoMercadorias.Entities.StatusPedido"
+          },
+          "valorTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "dataPedido": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "observacao": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Entities.Produto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "codigoBarras": {
+            "type": "string",
+            "nullable": true
+          },
+          "nome": {
+            "type": "string",
+            "nullable": true
+          },
+          "descricao": {
+            "type": "string",
+            "nullable": true
+          },
+          "precoCusto": {
+            "type": "number",
+            "format": "double"
+          },
+          "precoVenda": {
+            "type": "number",
+            "format": "double"
+          },
+          "idCategoria": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "idFornecedor": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "ativo": {
+            "type": "boolean"
+          },
+          "dataCadastro": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecebimentoMercadorias.Entities.StatusPedido": {
+        "enum": [
+          "Aberto",
+          "EmConferencia",
+          "Confirmado",
+          "Cancelado"
+        ],
+        "type": "string"
+      },
+      "RecebimentoMercadorias.Entities.TipoMovimentacao": {
+        "enum": [
+          "Entrada",
+          "Saida",
+          "PerdaAvaria"
+        ],
+        "type": "string"
+      },
+      "RecebimentoMercadorias.Entities.Usuario": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nome": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "cargo": {
+            "type": "string",
+            "nullable": true
+          },
+          "ativo": {
+            "type": "boolean"
+          },
+          "dataCadastro": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
