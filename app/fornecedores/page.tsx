@@ -171,12 +171,30 @@ export default function FornecedoresPage() {
     setMessage(null);
   }
 
+  const fornecedoresAtivos = fornecedores.filter((fornecedor) => fornecedor.ativo).length;
+  const fornecedoresInativos = fornecedores.length - fornecedoresAtivos;
+
   return (
     <main className="page-shell">
       <div className="page-header">
         <h1>Fornecedores</h1>
         <div className="header-actions">
           <Link href="/" className="secondary-button link-button">Voltar ao dashboard</Link>
+        </div>
+      </div>
+
+      <div className="supplier-summary" aria-label="Resumo de fornecedores">
+        <div className="summary-box primary">
+          <span>Total</span>
+          <strong>{fornecedores.length}</strong>
+        </div>
+        <div className="summary-box success">
+          <span>Ativos</span>
+          <strong>{fornecedoresAtivos}</strong>
+        </div>
+        <div className="summary-box muted">
+          <span>Inativos</span>
+          <strong>{fornecedoresInativos}</strong>
         </div>
       </div>
 

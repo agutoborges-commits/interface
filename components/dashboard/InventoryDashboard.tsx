@@ -51,10 +51,10 @@ export function InventoryDashboard() {
   const userRole = normalizeRole(sessionUser?.cargo);
   const canManageProducts = hasAnyRole(userRole, ['GERENTE', 'CEO']);
   const canViewInventory = hasAnyRole(userRole, ['GERENTE', 'CEO', 'CONFERENTE']);
-  const canViewFiliais = hasAnyRole(userRole, ['GERENTE', 'CEO']);
+  const canViewSuppliers = hasAnyRole(userRole, ['GERENTE', 'CEO', 'FILIAL']);
+  const canViewUsers = hasAnyRole(userRole, ['GERENTE', 'CEO']);
   const canCreateOrders = hasAnyRole(userRole, ['FILIAL', 'GERENTE', 'CEO']);
   const canViewConferencia = hasAnyRole(userRole, ['CONFERENTE', 'GERENTE', 'CEO']);
-  const canViewUsers = hasAnyRole(userRole, ['GERENTE', 'CEO']);
 
   const notifications = useMemo(() => {
     const items: Array<{ id: string; type: 'pedido' | 'estoque'; title: string; text: string; time: string }> = [];
@@ -117,9 +117,9 @@ export function InventoryDashboard() {
         <nav className="main-nav" aria-label="Navegação principal">
           <Link href="/">Dashboard</Link>
           {canViewInventory && <Link href="/produtos">Produtos</Link>}
+          {canViewSuppliers && <Link href="/fornecedores">Fornecedores</Link>}
           {canCreateOrders && <Link href="/pedidos">Pedidos</Link>}
           {canViewConferencia && <Link href="/conferencia">Conferência</Link>}
-          {canViewFiliais && <Link href="/fornecedores">Filiais</Link>}
           {canViewUsers && <Link href="/usuarios">Usuários</Link>}
           {!sessionUser && <Link href="/login">Login</Link>}
         </nav>
@@ -180,6 +180,7 @@ export function InventoryDashboard() {
             <Link href="/login" className="secondary-button link-button">Novo login</Link>
           )}
           {canCreateOrders && <Link href="/pedidos" className="secondary-button link-button">Novo pedido</Link>}
+          {canViewSuppliers && <Link href="/fornecedores" className="primary-button link-button">Novo fornecedor</Link>}
           {canManageProducts && <Link href="/produtos" className="primary-button link-button">Novo produto</Link>}
         </div>
       </header>
