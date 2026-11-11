@@ -13,3 +13,15 @@ C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\refint\interface.
 C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.pdb
 C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\interface.genruntimeconfig.cache
 C:\Users\Augusto_w_borges\Documents\interface\obj\Debug\net9.0\ref\interface.dll
+C:\Users\felipe_l_ferrari\Documents\interface\bin\Debug\net9.0\interface.deps.json
+C:\Users\felipe_l_ferrari\Documents\interface\bin\Debug\net9.0\interface.dll
+C:\Users\felipe_l_ferrari\Documents\interface\bin\Debug\net9.0\interface.pdb
+C:\Users\felipe_l_ferrari\Documents\interface\obj\Debug\net9.0\interface.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\felipe_l_ferrari\Documents\interface\obj\Debug\net9.0\interface.AssemblyInfoInputs.cache
+C:\Users\felipe_l_ferrari\Documents\interface\obj\Debug\net9.0\interface.AssemblyInfo.cs
+C:\Users\felipe_l_ferrari\Documents\interface\obj\Debug\net9.0\interface.csproj.CoreCompileInputs.cache
+C:\Users\felipe_l_ferrari\Documents\interface\obj\Debug\net9.0\interface.sourcelink.json
+C:\Users\felipe_l_ferrari\Documents\interface\obj\Debug\net9.0\interface.dll
+C:\Users\felipe_l_ferrari\Documents\interface\obj\Debug\net9.0\refint\interface.dll
+C:\Users\felipe_l_ferrari\Documents\interface\obj\Debug\net9.0\interface.pdb
+C:\Users\felipe_l_ferrari\Documents\interface\obj\Debug\net9.0\ref\interface.dll
