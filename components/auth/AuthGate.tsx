@@ -11,16 +11,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     clearLegacyAuthData();
-    const publicRoutes = ['/login'];
+    const publicRoutes = ['/', '/login'];
     const user = getCurrentUser();
     const session = getSupabaseSession();
 
     if (publicRoutes.includes(pathname)) {
-      if (user && session) {
-        router.replace('/');
-        return;
-      }
-
       setIsReady(true);
       return;
     }
