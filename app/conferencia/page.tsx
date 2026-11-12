@@ -1,7 +1,8 @@
 "use client";
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import BarcodeScannerInput from '@/components/barcode/BarcodeScannerInput';
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
 import type { Pedido } from '@/types/inventory';
@@ -12,8 +13,6 @@ export default function ConferenciaPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [codigoLeitura, setCodigoLeitura] = useState('');
-  const scannerBufferRef = useRef('');
-  const scannerTimestampRef = useRef<number | null>(null);
 
   async function loadPedidos() {
     try {
@@ -96,49 +95,35 @@ export default function ConferenciaPage() {
     }));
   }
 
-  function handleScannerKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Enter') {
-      const codigo = scannerBufferRef.current.trim();
-
-      if (codigo) {
-        const pedidoEncontrado = pedidos.find((pedido) => {
-          const codigoPedido = pedido.numeroPedido.replace(/\D/g, '');
-          const codigoId = String(pedido.id);
-          const codigoNormalizado = codigo.replace(/\D/g, '');
-
-          return codigoPedido === codigoNormalizado || codigoId === codigo || codigo === pedido.numeroPedido;
-        });
-
-        if (pedidoEncontrado) {
-          setCodigoLeitura(pedidoEncontrado.numeroPedido);
-          handleConferir(pedidoEncontrado);
-        } else {
-          setMessage({
-            type: 'error',
-            text: `Pedido não encontrado para o código lido: ${codigo}`,
-          });
-        }
-      }
-
-      scannerBufferRef.current = '';
-      scannerTimestampRef.current = null;
-      setCodigoLeitura('');
-      event.preventDefault();
+  function handleScannerScan(codigo: string) {
+    const codigoLimpo = codigo.trim();
+    if (!codigoLimpo) {
+      setMessage({
+        type: 'error',
+        text: 'Código vazio. Escaneie novamente.',
+      });
       return;
     }
 
-    if (event.key.length !== 1 || event.ctrlKey || event.altKey || event.metaKey) {
+    const pedidoEncontrado = pedidos.find((pedido) => {
+      const codigoPedido = pedido.numeroPedido.replace(/\D/g, '');
+      const codigoNormalizado = codigoLimpo.replace(/\D/g, '');
+      const codigoId = String(pedido.id);
+
+      return codigoPedido === codigoNormalizado || codigoId === codigoLimpo || codigoLimpo === pedido.numeroPedido;
+    });
+
+    if (!pedidoEncontrado) {
+      setMessage({
+        type: 'error',
+        text: `Pedido não encontrado para o código lido: ${codigoLimpo}`,
+      });
+      setCodigoLeitura(codigoLimpo);
       return;
     }
 
-    const now = Date.now();
-
-    if (!scannerTimestampRef.current || now - scannerTimestampRef.current > 50) {
-      scannerBufferRef.current = '';
-    }
-
-    scannerTimestampRef.current = now;
-    scannerBufferRef.current += event.key;
+    setCodigoLeitura(pedidoEncontrado.numeroPedido);
+    handleConferir(pedidoEncontrado);
   }
 
   function handleConferir(pedido: Pedido) {
@@ -175,11 +160,11 @@ export default function ConferenciaPage() {
 
         <label className="form-field full-width" style={{ marginTop: '8px' }}>
           <span>Código do pedido / scanner</span>
-          <input
+          <BarcodeScannerInput
             type="text"
             value={codigoLeitura}
-            onKeyDown={handleScannerKeyDown}
-            onChange={(event) => setCodigoLeitura(event.target.value)}
+            onChange={(value) => setCodigoLeitura(value)}
+            onScan={handleScannerScan}
             placeholder="Escaneie o código do pedido ou digite o número"
             autoFocus
           />
