@@ -18,7 +18,7 @@ const emptyRegister = {
 };
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [showRegister, setShowRegister] = useState(false);
   const [loginForm, setLoginForm] = useState(emptyLogin);
   const [registerForm, setRegisterForm] = useState(emptyRegister);
   const [loading, setLoading] = useState(false);
@@ -59,7 +59,7 @@ export default function LoginPage() {
         id: Date.now(),
         nome: email.split('@')[0] || 'Usuário',
         email,
-        cargo: 'GERENTE',
+        cargo: 'TRABALHADOR',
       };
 
       persistLocalSession(usuario);
@@ -117,84 +117,100 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="page-shell">
-      <div className="page-header">
-        <h1>Bem-vindo</h1>
+    <main className="page-shell" style={{ maxWidth: 1200, margin: '0 auto', paddingTop: 18 }}>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ margin: 0, fontSize: '4rem', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-0.06em', color: '#121212' }}>
+          Acesso ao sistema
+        </h1>
       </div>
 
-      {message && <div className={`message ${message.type}`}>{message.text}</div>}
+      {message && <div className={`message ${message.type}`} style={{ marginBottom: 16 }}>{message.text}</div>}
 
-      <div className="form-grid" style={{ marginBottom: '24px' }}>
-        <div className="card">
-          <div className="panel-header">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div className="card" style={{ minHeight: 420, borderRadius: 18, boxShadow: 'none', padding: '26px 28px', background: '#f3f3f3', border: '1px solid #e7e7e7' }}>
+          <div className="panel-header" style={{ display: 'block', marginBottom: 18 }}>
             <div>
-              <p className="eyebrow">Acesso</p>
-              <h2>Controle de estoque</h2>
+              <p className="eyebrow" style={{ margin: 0, color: '#1e88e5', fontSize: 12, letterSpacing: '0.18em', fontWeight: 700 }}>
+                CONTAS
+              </p>
+              <h2 style={{ margin: '18px 0 0', fontSize: '2.1rem', fontWeight: 800, color: '#171717' }}>
+                Acesso por convite
+              </h2>
             </div>
           </div>
-          <p>Crie sua conta ou entre com seu e-mail e senha para acessar o painel de produtos e movimentações.</p>
+
+          <p style={{ margin: 0, fontSize: '1.05rem', lineHeight: 1.6, color: '#1d1d1f' }}>
+            As contas são provisionadas por um gerente ou CEO. Você receberá um convite por e-mail para definir sua senha.
+          </p>
         </div>
 
-        <div className="card">
-          <div className="panel-header" style={{ marginBottom: '16px' }}>
+        <div className="card" style={{ minHeight: 420, borderRadius: 18, boxShadow: 'none', padding: '26px 28px', background: '#f3f3f3', border: '1px solid #e7e7e7' }}>
+          <div className="panel-header" style={{ display: 'block', marginBottom: 18 }}>
             <div>
-              <p className="eyebrow">Conta</p>
-              <h2>{mode === 'login' ? 'Entrar' : 'Criar conta'}</h2>
+              <p className="eyebrow" style={{ margin: 0, color: '#1e88e5', fontSize: 12, letterSpacing: '0.18em', fontWeight: 700 }}>
+                ACESSO
+              </p>
+              <h2 style={{ margin: '18px 0 0', fontSize: '2.1rem', fontWeight: 800, color: '#171717' }}>
+                {showRegister ? 'Cadastrar' : 'Entrar'}
+              </h2>
             </div>
           </div>
 
-          <div className="form-actions" style={{ marginBottom: '16px' }}>
-            <button type="button" className={mode === 'login' ? 'primary-button' : 'secondary-button'} onClick={() => setMode('login')}>
-              Entrar
-            </button>
-            <button type="button" className={mode === 'register' ? 'primary-button' : 'secondary-button'} onClick={() => setMode('register')}>
-              Cadastrar
-            </button>
-          </div>
-
-          {mode === 'login' ? (
-            <form onSubmit={handleLogin} className="form-grid">
-              <label className="form-field full-width">
-                <span>Email</span>
-                <input type="email" value={loginForm.email} onChange={(event) => handleLoginChange('email', event.target.value)} placeholder="nome@empresa.com" required />
+          {showRegister ? (
+            <form onSubmit={handleRegister} className="form-grid" style={{ display: 'grid', gap: 18 }}>
+              <label className="form-field full-width" style={{ display: 'grid', gap: 8 }}>
+                <span style={{ fontSize: '1rem', fontWeight: 600 }}>Nome</span>
+                <input type="text" value={registerForm.nome} onChange={(event) => handleRegisterChange('nome', event.target.value)} placeholder="Seu nome" required style={{ width: '100%', borderRadius: 12, border: '1px solid #dfe3ea', background: '#f0f1f4', padding: '14px 16px', fontSize: '1rem', color: '#222' }} />
               </label>
 
-              <label className="form-field full-width">
-                <span>Senha</span>
-                <input type="password" value={loginForm.senha} onChange={(event) => handleLoginChange('senha', event.target.value)} placeholder="Sua senha" required />
+              <label className="form-field full-width" style={{ display: 'grid', gap: 8 }}>
+                <span style={{ fontSize: '1rem', fontWeight: 600 }}>Email</span>
+                <input type="email" value={registerForm.email} onChange={(event) => handleRegisterChange('email', event.target.value)} placeholder="nome@empresa.com" required style={{ width: '100%', borderRadius: 12, border: '1px solid #dfe3ea', background: '#f0f1f4', padding: '14px 16px', fontSize: '1rem', color: '#222' }} />
               </label>
 
-              <div className="form-actions full-width">
-                <button type="submit" className="primary-button" disabled={loading}>
-                  {loading ? 'Entrando...' : 'Entrar'}
+              <label className="form-field full-width" style={{ display: 'grid', gap: 8 }}>
+                <span style={{ fontSize: '1rem', fontWeight: 600 }}>Senha</span>
+                <input type="password" value={registerForm.senha} onChange={(event) => handleRegisterChange('senha', event.target.value)} placeholder="Crie uma senha" required style={{ width: '100%', borderRadius: 12, border: '1px solid #dfe3ea', background: '#f0f1f4', padding: '14px 16px', fontSize: '1rem', color: '#222' }} />
+              </label>
+
+              <label className="form-field full-width" style={{ display: 'grid', gap: 8 }}>
+                <span style={{ fontSize: '1rem', fontWeight: 600 }}>Confirmar senha</span>
+                <input type="password" value={registerForm.confirmarSenha} onChange={(event) => handleRegisterChange('confirmarSenha', event.target.value)} placeholder="Repita a senha" required style={{ width: '100%', borderRadius: 12, border: '1px solid #dfe3ea', background: '#f0f1f4', padding: '14px 16px', fontSize: '1rem', color: '#222' }} />
+              </label>
+
+              <div className="form-actions full-width" style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+                <button type="submit" className="primary-button" disabled={loading} style={{ width: 160, height: 52, borderRadius: 999, fontSize: '1.05rem', fontWeight: 700, background: '#1e88e5' }}>
+                  {loading ? 'Cadastrando...' : 'Cadastrar'}
+                </button>
+              </div>
+
+              <div style={{ textAlign: 'center', marginTop: 8 }}>
+                <button type="button" onClick={() => setShowRegister(false)} className="secondary-button" style={{ background: 'transparent', color: '#1e88e5', border: 'none', padding: 0, fontWeight: 700 }}>
+                  Já tem conta? Entrar
                 </button>
               </div>
             </form>
           ) : (
-            <form onSubmit={handleRegister} className="form-grid">
-              <label className="form-field full-width">
-                <span>Nome</span>
-                <input type="text" value={registerForm.nome} onChange={(event) => handleRegisterChange('nome', event.target.value)} placeholder="Seu nome" required />
+            <form onSubmit={handleLogin} className="form-grid" style={{ display: 'grid', gap: 18 }}>
+              <label className="form-field full-width" style={{ display: 'grid', gap: 8 }}>
+                <span style={{ fontSize: '1rem', fontWeight: 600 }}>Email</span>
+                <input type="email" value={loginForm.email} onChange={(event) => handleLoginChange('email', event.target.value)} placeholder="nome@empresa.com" required style={{ width: '100%', borderRadius: 12, border: '1px solid #dfe3ea', background: '#f0f1f4', padding: '14px 16px', fontSize: '1rem', color: '#222' }} />
               </label>
 
-              <label className="form-field full-width">
-                <span>Email</span>
-                <input type="email" value={registerForm.email} onChange={(event) => handleRegisterChange('email', event.target.value)} placeholder="nome@empresa.com" required />
+              <label className="form-field full-width" style={{ display: 'grid', gap: 8 }}>
+                <span style={{ fontSize: '1rem', fontWeight: 600 }}>Senha</span>
+                <input type="password" value={loginForm.senha} onChange={(event) => handleLoginChange('senha', event.target.value)} placeholder="Sua senha" required style={{ width: '100%', borderRadius: 12, border: '1px solid #dfe3ea', background: '#f0f1f4', padding: '14px 16px', fontSize: '1rem', color: '#222' }} />
               </label>
 
-              <label className="form-field full-width">
-                <span>Senha</span>
-                <input type="password" value={registerForm.senha} onChange={(event) => handleRegisterChange('senha', event.target.value)} placeholder="Crie uma senha" required />
-              </label>
+              <div className="form-actions full-width" style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+                <button type="submit" className="primary-button" disabled={loading} style={{ width: 160, height: 52, borderRadius: 999, fontSize: '1.05rem', fontWeight: 700, background: '#1e88e5' }}>
+                  {loading ? 'Entrando...' : 'Entrar'}
+                </button>
+              </div>
 
-              <label className="form-field full-width">
-                <span>Confirmar senha</span>
-                <input type="password" value={registerForm.confirmarSenha} onChange={(event) => handleRegisterChange('confirmarSenha', event.target.value)} placeholder="Repita a senha" required />
-              </label>
-
-              <div className="form-actions full-width">
-                <button type="submit" className="primary-button" disabled={loading}>
-                  {loading ? 'Cadastrando...' : 'Cadastrar'}
+              <div style={{ textAlign: 'center', marginTop: 8 }}>
+                <button type="button" onClick={() => setShowRegister(true)} className="secondary-button" style={{ background: 'transparent', color: '#1e88e5', border: 'none', padding: 0, fontWeight: 700 }}>
+                  Ainda não tem conta? Cadastrar
                 </button>
               </div>
             </form>
