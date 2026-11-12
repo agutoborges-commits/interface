@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
-import type { Produto, Usuario } from '@/types/inventory';
+import type { Produto } from '@/types/inventory';
 
 const allowedRoles = ['GERENTE', 'CEO'];
 
@@ -19,8 +19,6 @@ const initialForm = {
 
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -28,17 +26,9 @@ export default function ProdutosPage() {
 
   async function loadProdutos() {
     try {
-      const [produtosData, usuariosData] = await Promise.all([
-        apiFetch<Produto[]>('/api/produtos'),
-        apiFetch<Usuario[]>('/api/usuarios'),
-      ]);
+      const produtosData = await apiFetch<Produto[]>('/api/produtos');
 
       setProdutos(produtosData);
-      setUsuarios(usuariosData);
-
-      if (!usuarioSelecionadoId && usuariosData.length > 0) {
-        setUsuarioSelecionadoId(usuariosData[0].id);
-      }
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
       setMessage({
@@ -59,7 +49,7 @@ export default function ProdutosPage() {
     loadProdutos();
   }, []);
 
-  const usuarioAtual = usuarios.find((usuario) => usuario.id === usuarioSelecionadoId) ?? getCurrentUser() ?? null;
+  const usuarioAtual = getCurrentUser();
   const isAutorizado = !!usuarioAtual && hasAnyRole(normalizeRole(usuarioAtual.cargo), allowedRoles);
 
   function handleFieldChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
@@ -137,16 +127,6 @@ export default function ProdutosPage() {
         </div>
 
         <div className="form-grid" style={{ marginBottom: '18px' }}>
-          <label className="form-field full-width">
-            <span>Usuário autenticado</span>
-            <select value={usuarioSelecionadoId ?? ''} onChange={(event) => setUsuarioSelecionadoId(Number(event.target.value))}>
-              {usuarios.map((usuario) => (
-                <option key={usuario.id} value={usuario.id}>
-                  {usuario.nome} - {usuario.cargo}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
 
         {message && <div className={`message ${message.type}`}>{message.text}</div>}

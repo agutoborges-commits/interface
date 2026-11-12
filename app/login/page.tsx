@@ -1,19 +1,10 @@
 "use client";
 
-import Link from 'next/link';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
-import { ROLE_OPTIONS, saveCurrentUser } from '@/lib/auth';
-import type { Usuario } from '@/types/inventory';
-
-const allowedRoles = ['TRABALHADOR', 'FILIAL', 'GERENTE', 'CONFERENTE', 'CEO'];
-
-const emptyRegister = {
-  nome: '',
-  email: '',
-  senha: '',
-  cargo: 'TRABALHADOR',
-};
+import { clearCurrentUser, saveCurrentUser } from '@/lib/auth';
+import { saveSupabaseSession, signInWithPassword } from '@/lib/supabase';
+import type { AuthUser } from '@/lib/auth';
 
 const emptyLogin = {
   email: '',
@@ -21,136 +12,42 @@ const emptyLogin = {
 };
 
 export default function LoginPage() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [registerForm, setRegisterForm] = useState(emptyRegister);
   const [loginForm, setLoginForm] = useState(emptyLogin);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  useEffect(() => {
-    const storedUsers = localStorage.getItem('stock-users');
-    if (storedUsers) {
-      try {
-        const parsedUsers = JSON.parse(storedUsers) as Usuario[];
-        setUsuarios(parsedUsers);
-      } catch {
-        setUsuarios([]);
-      }
-    }
-
-    apiFetch<Usuario[]>('/api/usuarios')
-      .then((data) => {
-        setUsuarios((current) => current.length ? current : data);
-        localStorage.setItem('stock-users', JSON.stringify(data));
-      })
-      .catch(() => {
-        setUsuarios((current) => current);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const usuariosDisponiveis = useMemo(
-    () => usuarios.filter((usuario) => !!usuario.email),
-    [usuarios],
-  );
-
-  function handleRegisterChange(field: keyof typeof emptyRegister, value: string) {
-    setRegisterForm((current) => ({ ...current, [field]: value }));
-  }
 
   function handleLoginChange(field: keyof typeof emptyLogin, value: string) {
     setLoginForm((current) => ({ ...current, [field]: value }));
   }
 
-  async function handleCreateUser(event: FormEvent) {
+  async function handleLogin(event: FormEvent) {
     event.preventDefault();
-
-    if (!registerForm.nome.trim() || !registerForm.email.trim() || !registerForm.senha.trim()) {
-      setMessage({ type: 'error', text: 'Preencha nome, e-mail e senha.' });
-      return;
-    }
-
-    const cargo = registerForm.cargo.toUpperCase();
-    if (!allowedRoles.some((role) => cargo.includes(role))) {
-      setMessage({ type: 'error', text: 'Cargo inválido. Use um cargo como TRABALHADOR, FILIAL, GERENTE, CONFERENTE ou CEO.' });
-      return;
-    }
-
-    const novoUsuario: Usuario & { senha?: string } = {
-      id: Date.now(),
-      nome: registerForm.nome.trim(),
-      email: registerForm.email.trim(),
-      cargo,
-      ativo: true,
-      senha: registerForm.senha,
-    };
-
-    const nextUsers = [novoUsuario, ...usuariosDisponiveis];
-    setUsuarios(nextUsers);
-    localStorage.setItem('stock-users', JSON.stringify(nextUsers));
-
+    setLoading(true);
+    setMessage(null);
     try {
-      await apiFetch<Usuario>('/api/usuarios', {
-        method: 'POST',
-        body: JSON.stringify({
-          nome: novoUsuario.nome,
-          email: novoUsuario.email,
-          cargo: novoUsuario.cargo,
-          ativo: true,
-        }),
-      });
+      const session = await signInWithPassword(
+        loginForm.email.trim(),
+        loginForm.senha,
+      );
+      saveSupabaseSession(session);
+      const user = await apiFetch<AuthUser>('/api/usuarios/me');
+      saveCurrentUser(user);
+      window.location.assign('/');
     } catch (error) {
-      console.warn('Cadastro local realizado; backend pode rejeitar sem senha', error);
+      clearCurrentUser();
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível entrar.',
+      });
+    } finally {
+      setLoading(false);
     }
-
-    setRegisterForm(emptyRegister);
-    setMessage({
-      type: 'success',
-      text: `Login criado com sucesso para ${novoUsuario.nome}.`,
-    });
-  }
-
-  function handleLogin(event: FormEvent) {
-    event.preventDefault();
-
-    const usuarioEncontrado = usuariosDisponiveis.find(
-      (usuario) => usuario.email?.toLowerCase() === loginForm.email.trim().toLowerCase(),
-    );
-
-    if (!usuarioEncontrado) {
-      setMessage({ type: 'error', text: 'Usuário não encontrado.' });
-      return;
-    }
-
-    const senhaGuardada = (usuarioEncontrado as Usuario & { senha?: string }).senha;
-    if (senhaGuardada && senhaGuardada !== loginForm.senha) {
-      setMessage({ type: 'error', text: 'Senha incorreta.' });
-      return;
-    }
-
-    const sessionUser = {
-      id: usuarioEncontrado.id,
-      nome: usuarioEncontrado.nome,
-      email: usuarioEncontrado.email,
-      cargo: usuarioEncontrado.cargo,
-    };
-
-    saveCurrentUser(sessionUser);
-    setMessage({
-      type: 'success',
-      text: `Login realizado com sucesso. Bem-vindo, ${usuarioEncontrado.nome}.`,
-    });
-    window.location.href = '/';
   }
 
   return (
     <main className="page-shell">
       <div className="page-header">
-        <h1>Login e cadastro</h1>
-        <div className="header-actions">
-          <Link href="/" className="secondary-button link-button">Voltar ao dashboard</Link>
-          <Link href="/usuarios" className="primary-button link-button">Usuários</Link>
-        </div>
+        <h1>Acesso ao sistema</h1>
       </div>
 
       {message && <div className={`message ${message.type}`}>{message.text}</div>}
@@ -159,44 +56,11 @@ export default function LoginPage() {
         <div className="card">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Novo</p>
-              <h2>Criar login</h2>
+              <p className="eyebrow">Contas</p>
+              <h2>Acesso por convite</h2>
             </div>
           </div>
-
-          <form onSubmit={handleCreateUser} className="form-grid">
-            <label className="form-field full-width">
-              <span>Nome</span>
-              <input value={registerForm.nome} onChange={(event) => handleRegisterChange('nome', event.target.value)} placeholder="Seu nome completo" required />
-            </label>
-
-            <label className="form-field full-width">
-              <span>Email</span>
-              <input type="email" value={registerForm.email} onChange={(event) => handleRegisterChange('email', event.target.value)} placeholder="nome@empresa.com" required />
-            </label>
-
-            <label className="form-field full-width">
-              <span>Senha</span>
-              <input type="password" value={registerForm.senha} onChange={(event) => handleRegisterChange('senha', event.target.value)} placeholder="Crie uma senha" required />
-            </label>
-
-            <label className="form-field full-width">
-              <span>Cargo</span>
-              <select value={registerForm.cargo} onChange={(event) => handleRegisterChange('cargo', event.target.value)}>
-                {ROLE_OPTIONS.map((role) => (
-                  <option key={role.value} value={role.value}>
-                    {role.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="form-actions full-width">
-              <button type="submit" className="primary-button" disabled={loading}>
-                {loading ? 'Carregando...' : 'Criar login'}
-              </button>
-            </div>
-          </form>
+          <p>As contas são provisionadas por um gerente ou CEO. Você receberá um convite por e-mail para definir sua senha.</p>
         </div>
 
         <div className="card">
@@ -219,8 +83,8 @@ export default function LoginPage() {
             </label>
 
             <div className="form-actions full-width">
-              <button type="submit" className="primary-button">
-                Entrar
+              <button type="submit" className="primary-button" disabled={loading}>
+                {loading ? 'Entrando...' : 'Entrar'}
               </button>
             </div>
           </form>

@@ -5,8 +5,6 @@ export type Produto = {
   descricao?: string | null;
   precoCusto: number;
   precoVenda: number;
-  estoqueAtual?: number | null;
-  estoqueMinimo?: number | null;
   idCategoria?: number | null;
   idFornecedor?: number | null;
   ativo: boolean;
@@ -31,7 +29,6 @@ export type Usuario = {
   email: string;
   cargo: string;
   ativo: boolean;
-  senha?: string;
   dataCadastro?: string | null;
 };
 

@@ -1,3 +1,8 @@
+import type { SupabaseSession } from '@/lib/supabase';
+
+const sessionStorageKey = 'stock-auth-session';
+const userStorageKey = 'stock-auth-user';
+
 export type AuthUser = {
   id: number;
   nome: string;
@@ -22,16 +27,50 @@ export function hasAnyRole(cargo: string | null | undefined, roles: string[]) {
   return roles.some((role) => normalized.includes(role));
 }
 
-export function getCurrentUser(): AuthUser | null {
+export function getSupabaseSession(): SupabaseSession | null {
   if (typeof window === 'undefined') {
     return null;
   }
 
+  const raw = sessionStorage.getItem(sessionStorageKey);
+  if (!raw) return null;
+
   try {
-    const raw = localStorage.getItem('stock-auth-user');
+    const session = JSON.parse(raw) as SupabaseSession;
+    if (!session.accessToken || !session.refreshToken || !session.expiresAt) {
+      throw new Error('Invalid Supabase session');
+    }
+
+    return session;
+  } catch {
+    clearCurrentUser();
+    return null;
+  }
+}
+
+export function saveSupabaseSession(session: SupabaseSession) {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(sessionStorageKey, JSON.stringify(session));
+  }
+}
+
+export function clearLegacyAuthData() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('stock-users');
+    localStorage.removeItem(userStorageKey);
+  }
+}
+
+export function getCurrentUser(): AuthUser | null {
+  if (typeof window === 'undefined' || !getSupabaseSession()) {
+    return null;
+  }
+
+  try {
+    const raw = sessionStorage.getItem(userStorageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AuthUser;
-    if (!parsed?.email) return null;
+    if (!parsed?.email || !parsed.id || !parsed.cargo) return null;
     return parsed;
   } catch {
     return null;
@@ -40,12 +79,14 @@ export function getCurrentUser(): AuthUser | null {
 
 export function saveCurrentUser(user: AuthUser) {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('stock-auth-user', JSON.stringify(user));
+    sessionStorage.setItem(userStorageKey, JSON.stringify(user));
   }
 }
 
 export function clearCurrentUser() {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('stock-auth-user');
+    sessionStorage.removeItem(userStorageKey);
+    sessionStorage.removeItem(sessionStorageKey);
+    clearLegacyAuthData();
   }
 }

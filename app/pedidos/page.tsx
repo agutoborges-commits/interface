@@ -4,16 +4,10 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
-import type { Pedido, Produto, Usuario } from '@/types/inventory';
+import { calcularEstoquePorProduto, type MovimentacaoEstoque } from '@/lib/stock';
+import type { Pedido, Produto } from '@/types/inventory';
 
 const createNumeroPedido = () => `PED-${Date.now().toString().slice(-6)}`;
-
-const enrichProdutos = (items: Produto[]): Produto[] =>
-  items.map((produto, index) => ({
-    ...produto,
-    estoqueAtual: produto.estoqueAtual ?? Math.max(2, 12 + (index % 6) * 3),
-    estoqueMinimo: produto.estoqueMinimo ?? Math.max(2, 5 + (index % 3)),
-  }));
 
 const initialForm = {
   numeroPedido: createNumeroPedido(),
@@ -30,11 +24,10 @@ const initialSelection = {
 export default function PedidosPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [usuarioSelecionadoId, setUsuarioSelecionadoId] = useState<number | null>(null);
+  const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
   const [form, setForm] = useState(initialForm);
   const [selection, setSelection] = useState(initialSelection);
-  const [itensPedido, setItensPedido] = useState<Array<{ id: number; produtoId: number; nome: string; quantidade: number; precoVenda: number; estoqueAtual: number; estoqueMinimo: number }>>([]);
+  const [itensPedido, setItensPedido] = useState<Array<{ id: number; produtoId: number; nome: string; quantidade: number; precoVenda: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [conferidos, setConferidos] = useState<Record<number, boolean>>({});
@@ -42,24 +35,22 @@ export default function PedidosPage() {
 
   async function loadPedidos() {
     try {
-      const [pedidosData, produtosData, usuariosData] = await Promise.all([
+      const [pedidosData, produtosData, movimentacoesData] = await Promise.all([
         apiFetch<Pedido[]>('/api/pedidos'),
         apiFetch<Produto[]>('/api/produtos'),
-        apiFetch<Usuario[]>('/api/usuarios'),
+        apiFetch<MovimentacaoEstoque[]>('/api/MovimentacoesEstoque'),
       ]);
 
       setPedidos(pedidosData);
-      setProdutos(enrichProdutos(produtosData));
-      setUsuarios(usuariosData);
-
-      if (!usuarioSelecionadoId && usuariosData.length > 0) {
-        setUsuarioSelecionadoId(usuariosData[0].id);
-      }
+      setProdutos(produtosData);
+      setMovimentacoes(movimentacoesData);
     } catch (error) {
       console.error('Erro ao carregar pedidos:', error);
       setMessage({
         type: 'error',
-        text: 'Não foi possível carregar os pedidos no momento.',
+        text: error instanceof Error
+          ? `Não foi possível carregar os pedidos: ${error.message}`
+          : 'Erro inesperado ao carregar os pedidos.',
       });
     } finally {
       setLoading(false);
@@ -75,8 +66,12 @@ export default function PedidosPage() {
     loadPedidos();
   }, []);
 
-  const usuarioAtual = usuarios.find((usuario) => usuario.id === usuarioSelecionadoId) ?? getCurrentUser() ?? null;
+  const usuarioAtual = getCurrentUser();
   const isAutorizado = !!usuarioAtual && hasAnyRole(normalizeRole(usuarioAtual.cargo), ['FILIAL', 'GERENTE', 'CEO']);
+  const estoquePorProduto = useMemo(
+    () => calcularEstoquePorProduto(movimentacoes),
+    [movimentacoes],
+  );
 
   function handleFieldChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = event.target;
@@ -116,13 +111,13 @@ export default function PedidosPage() {
       return;
     }
 
-    const estoqueAtual = Number(produtoSelecionado.estoqueAtual ?? 0);
-    const estoqueMinimo = Number(produtoSelecionado.estoqueMinimo ?? 0);
+    const estoqueAtual = estoquePorProduto.get(produtoSelecionado.id) ?? 0;
+    const quantidadeJaNoPedido = itensPedido.find((item) => item.produtoId === produtoId)?.quantidade ?? 0;
 
-    if (quantidade > estoqueAtual) {
+    if (quantidadeJaNoPedido + quantidade > estoqueAtual) {
       setMessage({
         type: 'error',
-        text: `A quantidade solicitada excede o estoque disponível (${estoqueAtual} unidades).`,
+        text: `A quantidade total solicitada excede o estoque disponível (${estoqueAtual} unidades).`,
       });
       return;
     }
@@ -146,8 +141,6 @@ export default function PedidosPage() {
           nome: produtoSelecionado.nome,
           quantidade,
           precoVenda: Number(produtoSelecionado.precoVenda || 0),
-          estoqueAtual,
-          estoqueMinimo,
         },
       ];
     });
@@ -168,14 +161,9 @@ export default function PedidosPage() {
     [itensPedido],
   );
 
-  const itensCriticos = useMemo(
-    () => produtos.filter((produto) => Number(produto.estoqueAtual ?? 0) <= Number(produto.estoqueMinimo ?? 0)).length,
-    [produtos],
-  );
-
   const semEstoque = useMemo(
-    () => produtos.filter((produto) => Number(produto.estoqueAtual ?? 0) === 0).length,
-    [produtos],
+    () => produtos.filter((produto) => (estoquePorProduto.get(produto.id) ?? 0) <= 0).length,
+    [estoquePorProduto, produtos],
   );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -265,19 +253,6 @@ export default function PedidosPage() {
           </div>
         </div>
 
-        <div className="form-grid" style={{ marginBottom: '18px' }}>
-          <label className="form-field full-width">
-            <span>Usuário que está criando o pedido</span>
-            <select value={usuarioSelecionadoId ?? ''} onChange={(event) => setUsuarioSelecionadoId(Number(event.target.value))}>
-              {usuarios.map((usuario) => (
-                <option key={usuario.id} value={usuario.id}>
-                  {usuario.nome} - {usuario.cargo}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
         {message && <div className={`message ${message.type}`}>{message.text}</div>}
 
         {!isAutorizado ? (
@@ -340,7 +315,7 @@ export default function PedidosPage() {
                   <option value="">Selecione um produto</option>
                   {produtos.map((produto) => (
                     <option key={produto.id} value={produto.id}>
-                      {produto.nome} ({produto.estoqueAtual ?? 0} em estoque)
+                      {produto.nome} ({estoquePorProduto.get(produto.id) ?? 0} em estoque)
                     </option>
                   ))}
                 </select>
@@ -391,10 +366,10 @@ export default function PedidosPage() {
             <small>Valor estimado</small>
           </article>
 
-          <article className="stat-card danger">
-            <span className="stat-label">Abaixo do mínimo</span>
-            <strong>{itensCriticos}</strong>
-            <small>Produtos em alerta</small>
+          <article className="stat-card">
+            <span className="stat-label">Unidades disponíveis</span>
+            <strong>{Array.from(estoquePorProduto.values()).reduce((total, quantidade) => total + quantidade, 0)}</strong>
+            <small>Saldo calculado pelas movimentações</small>
           </article>
 
           <article className="stat-card danger">
@@ -410,7 +385,6 @@ export default function PedidosPage() {
               <tr>
                 <th>Produto</th>
                 <th>Estoque</th>
-                <th>Mínimo</th>
                 <th>Status</th>
                 <th>Qtd no pedido</th>
                 <th>Valor</th>
@@ -419,19 +393,16 @@ export default function PedidosPage() {
             </thead>
             <tbody>
               {produtos.map((produto) => {
-                const estoqueAtual = Number(produto.estoqueAtual ?? 0);
-                const estoqueMinimo = Number(produto.estoqueMinimo ?? 0);
-                const abaixoDoMinimo = estoqueAtual <= estoqueMinimo;
-                const status = abaixoDoMinimo ? 'Crítico' : estoqueAtual <= estoqueMinimo + 3 ? 'Baixo' : 'Normal';
+                const estoqueAtual = estoquePorProduto.get(produto.id) ?? 0;
+                const semEstoque = estoqueAtual <= 0;
 
                 return (
-                  <tr key={produto.id} className={abaixoDoMinimo ? 'row-alert' : ''}>
+                  <tr key={produto.id} className={semEstoque ? 'row-alert' : ''}>
                     <td>{produto.nome}</td>
                     <td>{estoqueAtual}</td>
-                    <td>{estoqueMinimo}</td>
                     <td>
-                      <span className={`status-badge ${abaixoDoMinimo ? 'empty' : status === 'Baixo' ? 'low' : 'normal'}`}>
-                        {status}
+                      <span className={`status-badge ${semEstoque ? 'empty' : 'normal'}`}>
+                        {semEstoque ? 'Sem estoque' : 'Disponível'}
                       </span>
                     </td>
                     <td>{itensPedido.find((item) => item.produtoId === produto.id)?.quantidade ?? 0}</td>
