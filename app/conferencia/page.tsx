@@ -14,6 +14,7 @@ export default function ConferenciaPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [codigoLeitura, setCodigoLeitura] = useState('');
+  const [pedidoSelecionadoId, setPedidoSelecionadoId] = useState<number | null>(null);
 
   async function loadPedidos() {
     try {
@@ -78,7 +79,7 @@ export default function ConferenciaPage() {
     [pedidos],
   );
   const pedidosPendentes = useMemo(
-    () => pedidos.filter((pedido) => pedido.status !== 'EmConferencia' && pedido.status !== 'Conferido').length,
+    () => pedidos.filter((pedido) => pedido.status !== 'Conferido'),
     [pedidos],
   );
   const pedidosComExcesso = useMemo(
@@ -88,6 +89,16 @@ export default function ConferenciaPage() {
     }).length,
     [pedidos, quantidades],
   );
+  const pedidoSelecionado = useMemo(
+    () => pedidosPendentes.find((pedido) => pedido.id === pedidoSelecionadoId) ?? pedidosPendentes[0] ?? null,
+    [pedidosPendentes, pedidoSelecionadoId],
+  );
+
+  useEffect(() => {
+    if (pedidoSelecionado && !pedidoSelecionadoId) {
+      setPedidoSelecionadoId(pedidoSelecionado.id);
+    }
+  }, [pedidoSelecionado, pedidoSelecionadoId]);
 
   function handleQuantidadeChange(pedidoId: number, field: 'pedida' | 'enviada', value: string) {
     const numero = Number(value) || 0;
@@ -212,6 +223,46 @@ export default function ConferenciaPage() {
         </label>
       </div>
 
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Pendentes</p>
+            <h2>Pedidos aguardando conferência</h2>
+          </div>
+        </div>
+
+        <div className="stacked-list" style={{ display: 'grid', gap: '12px' }}>
+          {pedidosPendentes.length === 0 ? (
+            <div className="loading-card">Nenhum pedido pendente.</div>
+          ) : (
+            pedidosPendentes.map((pedido) => (
+              <button
+                key={pedido.id}
+                type="button"
+                onClick={() => setPedidoSelecionadoId(pedido.id)}
+                className="secondary-button"
+                style={{
+                  width: '100%',
+                  justifyContent: 'space-between',
+                  textAlign: 'left',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  border: pedido.id === pedidoSelecionado?.id ? '2px solid #4f8ef7' : '1px solid #d7e4f5',
+                  background: pedido.id === pedidoSelecionado?.id ? '#eef6ff' : '#fff',
+                }}
+              >
+                <span>
+                  <strong>{pedido.numeroPedido}</strong>
+                </span>
+                <span>{pedido.filialId}</span>
+                <span>{pedido.dataPedido ? new Date(pedido.dataPedido).toLocaleString('pt-BR') : '—'}</span>
+                <span>{pedido.status || 'Aberto'}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
       <section className="stats-grid" style={{ marginBottom: '24px' }}>
         <article className="stat-card">
           <span className="stat-label">Pedidos recebidos</span>
@@ -227,7 +278,7 @@ export default function ConferenciaPage() {
 
         <article className="stat-card danger">
           <span className="stat-label">Pendentes</span>
-          <strong>{pedidosPendentes}</strong>
+          <strong>{pedidosPendentes.length}</strong>
           <small>Aguardando envio</small>
         </article>
 
@@ -242,12 +293,14 @@ export default function ConferenciaPage() {
         <div className="panel-header">
           <div>
             <p className="eyebrow">Fluxo</p>
-            <h2>Pedidos em conferência</h2>
+            <h2>Conferência do pedido selecionado</h2>
           </div>
         </div>
 
         {loading ? (
           <div className="loading-card">Carregando conferência...</div>
+        ) : !pedidoSelecionado ? (
+          <div className="loading-card">Selecione um pedido pendente para conferir.</div>
         ) : (
           <div className="table-wrap">
             <table>
@@ -263,59 +316,52 @@ export default function ConferenciaPage() {
                 </tr>
               </thead>
               <tbody>
-                {pedidos.map((pedido) => {
-                  const status = pedido.status || 'Aberto';
-                  const statusClass = status === 'Conferido' ? 'normal' : status === 'EmConferencia' ? 'low' : 'empty';
-                  const registroAtual = quantidades[pedido.id] ?? { pedida: 0, enviada: 0 };
-                  const pedidoExcedido = registroAtual.enviada > registroAtual.pedida * 1.2;
-
-                  return (
-                    <tr key={pedido.id} className={pedidoExcedido ? 'row-alert' : ''}>
-                      <td>{pedido.id}</td>
-                      <td>{pedido.numeroPedido}</td>
-                      <td>{pedido.filialId}</td>
-                      <td>
-                        <span className={`status-badge ${statusClass}`}>{status}</span>
-                      </td>
-                      <td>{pedido.dataPedido ? new Date(pedido.dataPedido).toLocaleString('pt-BR') : '—'}</td>
-                      <td>
-                        <div className="stacked-cell">
-                          <span>{pedido.observacao || '—'}</span>
-                          {pedidoExcedido && (
-                            <strong className="alert-text">Alerta: quantidade enviada acima do pedido</strong>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="quantity-stack">
-                          <label className="mini-field">
-                            <span>Pedida</span>
-                            <input
-                              type="number"
-                              min="0"
-                              value={registroAtual.pedida}
-                              onChange={(event) => handleQuantidadeChange(pedido.id, 'pedida', event.target.value)}
-                            />
-                          </label>
-                          <label className="mini-field">
-                            <span>Enviada</span>
-                            <input
-                              type="number"
-                              min="0"
-                              value={registroAtual.enviada}
-                              onChange={(event) => handleQuantidadeChange(pedido.id, 'enviada', event.target.value)}
-                            />
-                          </label>
-                          <div className="inline-actions" style={{ marginTop: '8px' }}>
-                            <button type="button" onClick={() => handleConferir(pedido)}>
-                              {status === 'Conferido' ? 'Conferido' : 'Conferir'}
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                <tr key={pedidoSelecionado.id} className={pedidoSelecionado.status === 'Conferido' ? 'row-alert' : ''}>
+                  <td>{pedidoSelecionado.id}</td>
+                  <td>{pedidoSelecionado.numeroPedido}</td>
+                  <td>{pedidoSelecionado.filialId}</td>
+                  <td>
+                    <span className={`status-badge ${pedidoSelecionado.status === 'Conferido' ? 'normal' : pedidoSelecionado.status === 'EmConferencia' ? 'low' : 'empty'}`}>
+                      {pedidoSelecionado.status || 'Aberto'}
+                    </span>
+                  </td>
+                  <td>{pedidoSelecionado.dataPedido ? new Date(pedidoSelecionado.dataPedido).toLocaleString('pt-BR') : '—'}</td>
+                  <td>
+                    <div className="stacked-cell">
+                      <span>{pedidoSelecionado.observacao || '—'}</span>
+                      {((quantidades[pedidoSelecionado.id]?.enviada ?? 0) > (quantidades[pedidoSelecionado.id]?.pedida ?? 0) * 1.2) && (
+                        <strong className="alert-text">Alerta: quantidade enviada acima do pedido</strong>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="quantity-stack">
+                      <label className="mini-field">
+                        <span>Pedida</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={quantidades[pedidoSelecionado.id]?.pedida ?? 0}
+                          onChange={(event) => handleQuantidadeChange(pedidoSelecionado.id, 'pedida', event.target.value)}
+                        />
+                      </label>
+                      <label className="mini-field">
+                        <span>Enviada</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={quantidades[pedidoSelecionado.id]?.enviada ?? 0}
+                          onChange={(event) => handleQuantidadeChange(pedidoSelecionado.id, 'enviada', event.target.value)}
+                        />
+                      </label>
+                      <div className="inline-actions" style={{ marginTop: '8px' }}>
+                        <button type="button" onClick={() => handleConferir(pedidoSelecionado)}>
+                          {pedidoSelecionado.status === 'Conferido' ? 'Conferido' : 'Conferir'}
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
