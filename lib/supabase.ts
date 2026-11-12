@@ -69,6 +69,12 @@ export function refreshSupabaseSession(refreshToken: string) {
   return requestSession('refresh_token', { refresh_token: refreshToken });
 }
 
+export function saveSupabaseSession(session: SupabaseSession) {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('stock-auth-session', JSON.stringify(session));
+  }
+}
+
 export async function signOutSupabase(session: SupabaseSession) {
   const { url, anonKey } = getSupabaseConfig();
   const response = await fetch(`${url}/auth/v1/logout`, {

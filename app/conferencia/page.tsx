@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
 import type { Pedido } from '@/types/inventory';
@@ -11,6 +11,9 @@ export default function ConferenciaPage() {
   const [quantidades, setQuantidades] = useState<Record<number, { pedida: number; enviada: number }>>({});
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [codigoLeitura, setCodigoLeitura] = useState('');
+  const scannerBufferRef = useRef('');
+  const scannerTimestampRef = useRef<number | null>(null);
 
   async function loadPedidos() {
     try {
@@ -93,6 +96,51 @@ export default function ConferenciaPage() {
     }));
   }
 
+  function handleScannerKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      const codigo = scannerBufferRef.current.trim();
+
+      if (codigo) {
+        const pedidoEncontrado = pedidos.find((pedido) => {
+          const codigoPedido = pedido.numeroPedido.replace(/\D/g, '');
+          const codigoId = String(pedido.id);
+          const codigoNormalizado = codigo.replace(/\D/g, '');
+
+          return codigoPedido === codigoNormalizado || codigoId === codigo || codigo === pedido.numeroPedido;
+        });
+
+        if (pedidoEncontrado) {
+          setCodigoLeitura(pedidoEncontrado.numeroPedido);
+          handleConferir(pedidoEncontrado);
+        } else {
+          setMessage({
+            type: 'error',
+            text: `Pedido não encontrado para o código lido: ${codigo}`,
+          });
+        }
+      }
+
+      scannerBufferRef.current = '';
+      scannerTimestampRef.current = null;
+      setCodigoLeitura('');
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key.length !== 1 || event.ctrlKey || event.altKey || event.metaKey) {
+      return;
+    }
+
+    const now = Date.now();
+
+    if (!scannerTimestampRef.current || now - scannerTimestampRef.current > 50) {
+      scannerBufferRef.current = '';
+    }
+
+    scannerTimestampRef.current = now;
+    scannerBufferRef.current += event.key;
+  }
+
   function handleConferir(pedido: Pedido) {
     setPedidos((current) =>
       current.map((item) =>
@@ -116,6 +164,27 @@ export default function ConferenciaPage() {
       </div>
 
       {message && <div className={`message ${message.type}`}>{message.text}</div>}
+
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Leitor</p>
+            <h2>Conferência por scanner</h2>
+          </div>
+        </div>
+
+        <label className="form-field full-width" style={{ marginTop: '8px' }}>
+          <span>Código do pedido / scanner</span>
+          <input
+            type="text"
+            value={codigoLeitura}
+            onKeyDown={handleScannerKeyDown}
+            onChange={(event) => setCodigoLeitura(event.target.value)}
+            placeholder="Escaneie o código do pedido ou digite o número"
+            autoFocus
+          />
+        </label>
+      </div>
 
       <section className="stats-grid" style={{ marginBottom: '24px' }}>
         <article className="stat-card">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
 import type { Produto } from '@/types/inventory';
@@ -23,6 +23,8 @@ export default function ProdutosPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState(initialForm);
+  const scannerBufferRef = useRef('');
+  const scannerTimestampRef = useRef<number | null>(null);
 
   async function loadProdutos() {
     try {
@@ -61,6 +63,37 @@ export default function ProdutosPage() {
       ...current,
       [name]: isCheckbox ? target.checked : value,
     }));
+  }
+
+  function handleBarcodeKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      const codigo = scannerBufferRef.current.trim();
+
+      if (codigo.length >= 3) {
+        setForm((current) => ({
+          ...current,
+          codigoBarras: codigo,
+        }));
+        event.preventDefault();
+      }
+
+      scannerBufferRef.current = '';
+      scannerTimestampRef.current = null;
+      return;
+    }
+
+    if (event.key.length !== 1 || event.ctrlKey || event.altKey || event.metaKey) {
+      return;
+    }
+
+    const now = Date.now();
+
+    if (!scannerTimestampRef.current || now - scannerTimestampRef.current > 50) {
+      scannerBufferRef.current = '';
+    }
+
+    scannerTimestampRef.current = now;
+    scannerBufferRef.current += event.key;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -155,7 +188,9 @@ export default function ProdutosPage() {
                   name="codigoBarras"
                   value={form.codigoBarras}
                   onChange={handleFieldChange}
+                  onKeyDown={handleBarcodeKeyDown}
                   placeholder="7890000000000"
+                  autoFocus
                 />
               </label>
 
