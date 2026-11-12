@@ -5,10 +5,11 @@ import { useEffect, useMemo, useState } from 'react';
 import BarcodeScannerInput from '@/components/barcode/BarcodeScannerInput';
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
-import type { Pedido } from '@/types/inventory';
+import type { Pedido, Produto } from '@/types/inventory';
 
 export default function ConferenciaPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [quantidades, setQuantidades] = useState<Record<number, { pedida: number; enviada: number }>>({});
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -16,11 +17,16 @@ export default function ConferenciaPage() {
 
   async function loadPedidos() {
     try {
-      const data = await apiFetch<Pedido[]>('/api/pedidos');
-      setPedidos(data);
+      const [pedidosData, produtosData] = await Promise.all([
+        apiFetch<Pedido[]>('/api/pedidos'),
+        apiFetch<Produto[]>('/api/produtos'),
+      ]);
+
+      setPedidos(pedidosData);
+      setProdutos(produtosData);
 
       const valoresIniciais: Record<number, { pedida: number; enviada: number }> = {};
-      data.forEach((pedido, index) => {
+      pedidosData.forEach((pedido, index) => {
         const pedidaBase = 8 + ((pedido.id + index) % 9) * 3;
         valoresIniciais[pedido.id] = {
           pedida: pedidaBase,
@@ -105,6 +111,37 @@ export default function ConferenciaPage() {
       return;
     }
 
+    const produtoEncontrado = produtos.find((produto) => {
+      const codigoProduto = produto.codigoBarras?.trim();
+      if (!codigoProduto) return false;
+      return codigoProduto === codigoLimpo || codigoProduto.replace(/\D/g, '') === codigoLimpo.replace(/\D/g, '');
+    });
+
+    if (produtoEncontrado) {
+      const pedidoEncontrado = pedidos.find((pedido) => {
+        const observacao = (pedido.observacao ?? '').toLowerCase();
+        const nomeProduto = (produtoEncontrado.nome ?? '').toLowerCase();
+        return observacao.includes(nomeProduto);
+      });
+
+      if (pedidoEncontrado) {
+        setCodigoLeitura(codigoLimpo);
+        setMessage({
+          type: 'success',
+          text: `Produto ${produtoEncontrado.nome} confirmado no pedido ${pedidoEncontrado.numeroPedido}.`,
+        });
+        handleConferir(pedidoEncontrado);
+        return;
+      }
+
+      setCodigoLeitura(codigoLimpo);
+      setMessage({
+        type: 'error',
+        text: `Código ${codigoLimpo} corresponde ao produto ${produtoEncontrado.nome}, mas não foi encontrado em nenhum pedido em conferência.`,
+      });
+      return;
+    }
+
     const pedidoEncontrado = pedidos.find((pedido) => {
       const codigoPedido = pedido.numeroPedido.replace(/\D/g, '');
       const codigoNormalizado = codigoLimpo.replace(/\D/g, '');
@@ -116,13 +153,17 @@ export default function ConferenciaPage() {
     if (!pedidoEncontrado) {
       setMessage({
         type: 'error',
-        text: `Pedido não encontrado para o código lido: ${codigoLimpo}`,
+        text: `Código de barras não encontrado: ${codigoLimpo}`,
       });
       setCodigoLeitura(codigoLimpo);
       return;
     }
 
     setCodigoLeitura(pedidoEncontrado.numeroPedido);
+    setMessage({
+      type: 'success',
+      text: `Pedido ${pedidoEncontrado.numeroPedido} localizado pelo código lido.`,
+    });
     handleConferir(pedidoEncontrado);
   }
 
