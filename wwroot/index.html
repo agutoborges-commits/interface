@@ -480,8 +480,18 @@
       }
 
       function getProductStatus(product) {
-        if (product.estoqueAtual <= 0) return 'esgotado';
-        if (product.estoqueAtual <= product.estoqueMinimo) return 'baixo';
+        const estoqueAtual = Number(product.estoqueAtual ?? product.qtd ?? product.quantidade ?? 0);
+        const estoqueMinimo = Number(product.estoqueMinimo ?? product.quantidadeMinima ?? 0);
+
+        if (Number.isFinite(estoqueAtual) && estoqueAtual >= 0) {
+          if (estoqueAtual <= 0) return 'esgotado';
+          if (estoqueMinimo > 0 && estoqueAtual <= estoqueMinimo) return 'baixo';
+          return 'normal';
+        }
+
+        const statusTexto = String(product.status || '').trim().toLowerCase();
+        if (statusTexto === 'esgotado') return 'esgotado';
+        if (statusTexto === 'baixo') return 'baixo';
         return 'normal';
       }
 
