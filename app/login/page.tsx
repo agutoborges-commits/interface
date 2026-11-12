@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from 'react';
-import { clearCurrentUser, saveCurrentUser } from '@/lib/auth';
+import { clearCurrentUser, saveCurrentUser, ROLE_OPTIONS } from '@/lib/auth';
 import { saveSupabaseSession } from '@/lib/supabase';
 import type { AuthUser } from '@/lib/auth';
 
@@ -15,6 +15,7 @@ const emptyRegister = {
   email: '',
   senha: '',
   confirmarSenha: '',
+  cargo: 'TRABALHADOR',
 };
 
 export default function LoginPage() {
@@ -101,7 +102,7 @@ export default function LoginPage() {
         id: Date.now(),
         nome,
         email,
-        cargo: 'TRABALHADOR',
+        cargo: registerForm.cargo,
       };
 
       persistLocalSession(usuario);
@@ -166,6 +167,19 @@ export default function LoginPage() {
               <label className="form-field full-width" style={{ display: 'grid', gap: 8 }}>
                 <span style={{ fontSize: '1rem', fontWeight: 600 }}>Email</span>
                 <input type="email" value={registerForm.email} onChange={(event) => handleRegisterChange('email', event.target.value)} placeholder="nome@empresa.com" required style={{ width: '100%', borderRadius: 12, border: '1px solid #dfe3ea', background: '#f0f1f4', padding: '14px 16px', fontSize: '1rem', color: '#222' }} />
+              </label>
+
+              <label className="form-field full-width" style={{ display: 'grid', gap: 8 }}>
+                <span style={{ fontSize: '1rem', fontWeight: 600 }}>Cargo</span>
+                <select
+                  value={registerForm.cargo}
+                  onChange={(event) => handleRegisterChange('cargo', event.target.value)}
+                  style={{ width: '100%', borderRadius: 12, border: '1px solid #dfe3ea', background: '#f0f1f4', padding: '14px 16px', fontSize: '1rem', color: '#222' }}
+                >
+                  {ROLE_OPTIONS.map((role) => (
+                    <option key={role.value} value={role.value}>{role.label}</option>
+                  ))}
+                </select>
               </label>
 
               <label className="form-field full-width" style={{ display: 'grid', gap: 8 }}>
