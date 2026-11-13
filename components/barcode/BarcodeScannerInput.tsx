@@ -9,6 +9,17 @@ type BarcodeScannerInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'onC
   onScan?: (code: string) => void;
 };
 
+const MAX_SCAN_GAP_MS = 250;
+const MIN_BARCODE_LENGTH = 8;
+const MAX_BARCODE_LENGTH = 30;
+
+function normalizeBarcodeInput(rawValue: string) {
+  return rawValue
+    .replace(/[\r\n\t\s]+/g, '')
+    .replace(/[^0-9A-Za-z]/g, '')
+    .trim();
+}
+
 export default function BarcodeScannerInput({
   value,
   defaultValue,
@@ -26,22 +37,24 @@ export default function BarcodeScannerInput({
   const currentValue = isControlled ? value : internalValue;
 
   function emitValue(nextValue: string) {
+    const normalized = normalizeBarcodeInput(nextValue);
+
     if (onChange) {
-      onChange(nextValue);
+      onChange(normalized);
     }
 
     if (!isControlled) {
-      setInternalValue(nextValue);
+      setInternalValue(normalized);
     }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Enter' || event.key === 'Tab') {
-      const code = bufferRef.current.replace(/\s+/g, '').trim();
+      const code = normalizeBarcodeInput(bufferRef.current);
       bufferRef.current = '';
       scanTimestampRef.current = null;
 
-      if (!code) {
+      if (!code || code.length < MIN_BARCODE_LENGTH) {
         onKeyDown?.(event);
         return;
       }
@@ -66,7 +79,11 @@ export default function BarcodeScannerInput({
     }
 
     const now = Date.now();
-    if (!scanTimestampRef.current || now - scanTimestampRef.current > 150) {
+    if (!scanTimestampRef.current || now - scanTimestampRef.current > MAX_SCAN_GAP_MS) {
+      bufferRef.current = '';
+    }
+
+    if (bufferRef.current.length >= MAX_BARCODE_LENGTH) {
       bufferRef.current = '';
     }
 
