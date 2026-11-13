@@ -36,8 +36,8 @@ export default function BarcodeScannerInput({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Enter') {
-      const code = bufferRef.current.trim();
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      const code = bufferRef.current.replace(/\s+/g, '').trim();
       bufferRef.current = '';
       scanTimestampRef.current = null;
 
@@ -66,7 +66,7 @@ export default function BarcodeScannerInput({
     }
 
     const now = Date.now();
-    if (!scanTimestampRef.current || now - scanTimestampRef.current > 50) {
+    if (!scanTimestampRef.current || now - scanTimestampRef.current > 150) {
       bufferRef.current = '';
     }
 
