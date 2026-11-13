@@ -217,24 +217,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        <div className="card" style={{ minHeight: 420, borderRadius: 18, boxShadow: 'none', padding: '26px 28px', background: '#f3f3f3', border: '1px solid #e7e7e7' }}>
-          <div className="panel-header" style={{ display: 'block', marginBottom: 18 }}>
-            <div>
-              <p className="eyebrow" style={{ margin: 0, color: '#1e88e5', fontSize: 12, letterSpacing: '0.18em', fontWeight: 700 }}>
-                CONTAS
-              </p>
-              <h2 style={{ margin: '18px 0 0', fontSize: '2.1rem', fontWeight: 800, color: '#171717' }}>
-                Acesso por convite
-              </h2>
-            </div>
-          </div>
-
-          <p style={{ margin: 0, fontSize: '1.05rem', lineHeight: 1.6, color: '#1d1d1f' }}>
-            As contas são provisionadas por um gerente ou CEO. Você receberá um convite por e-mail para definir sua senha.
-          </p>
-        </div>
-
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 620px)', justifyContent: 'center', gap: 24 }}>
         <div className="card" style={{ minHeight: 420, borderRadius: 18, boxShadow: 'none', padding: '26px 28px', background: '#f3f3f3', border: '1px solid #e7e7e7' }}>
           <div className="panel-header" style={{ display: 'block', marginBottom: 18 }}>
             <div>
