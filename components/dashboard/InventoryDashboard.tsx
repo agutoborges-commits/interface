@@ -297,13 +297,11 @@ export function InventoryDashboard() {
         <div className="brand-group">
           <div className="brand-mark">E</div>
           <div>
-            <p className="brand-label">Dashboard</p>
             <h1>Estoque</h1>
           </div>
         </div>
 
         <nav className="main-nav" aria-label="Navegação principal">
-          <Link href="/">Dashboard</Link>
           {canViewInventory && <Link href="/produtos">Produtos</Link>}
           {canCreateOrders && <Link href="/pedidos">Pedidos</Link>}
           {canViewConferencia && <Link href="/conferencia">Conferência</Link>}

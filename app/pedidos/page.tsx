@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from '
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
 import { calcularEstoquePorProduto, type MovimentacaoEstoque } from '@/lib/stock';
+import { formatOrderItems } from '@/lib/order-items';
 import type { Pedido, Produto } from '@/types/inventory';
 
 const createNumeroPedido = () => `PED-${Date.now().toString().slice(-6)}`;
@@ -12,7 +13,6 @@ const createNumeroPedido = () => `PED-${Date.now().toString().slice(-6)}`;
 const initialForm = {
   numeroPedido: createNumeroPedido(),
   filialId: 1,
-  status: 'EmConferencia',
   observacao: '',
 };
 
@@ -30,7 +30,6 @@ export default function PedidosPage() {
   const [itensPedido, setItensPedido] = useState<Array<{ id: number; produtoId: number; nome: string; quantidade: number; precoVenda: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [conferidos, setConferidos] = useState<Record<number, boolean>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   async function loadPedidos() {
@@ -188,21 +187,36 @@ export default function PedidosPage() {
     setSaving(true);
     setMessage(null);
 
+    let pedidoCriado: Pedido | null = null;
+    const numeroPedido = form.numeroPedido || createNumeroPedido();
+
     try {
-      const payload = {
-        numeroPedido: form.numeroPedido || createNumeroPedido(),
-        filialId: Number(form.filialId || 1),
-        status: form.status || 'EmConferencia',
-        valorTotal: valorTotalPedido,
-        observacao: form.observacao || `Itens: ${itensPedido.map((item) => `${item.nome} (${item.quantidade})`).join(', ')}`,
-      };
-
-      const pedidoCriado = await apiFetch<Pedido>('/api/pedidos', {
+      const observacao = [form.observacao.trim(), formatOrderItems(itensPedido)]
+        .filter(Boolean)
+        .join('\n');
+      const novoPedido = await apiFetch<Pedido>('/api/pedidos', {
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          numeroPedido,
+          filialId: Number(form.filialId || 1),
+          observacao,
+        }),
       });
+      pedidoCriado = novoPedido;
+      let pedidoComItens = novoPedido;
 
-      setPedidos((current) => [pedidoCriado, ...current]);
+      for (const item of itensPedido) {
+        pedidoComItens = await apiFetch<Pedido>(`/api/pedidos/${novoPedido.id}/itens`, {
+          method: 'POST',
+          body: JSON.stringify({
+            produtoId: item.produtoId,
+            quantidade: item.quantidade,
+            precoUnitario: item.precoVenda,
+          }),
+        });
+      }
+
+      setPedidos((current) => [pedidoComItens, ...current]);
       setItensPedido([]);
       setForm({
         ...initialForm,
@@ -211,27 +225,21 @@ export default function PedidosPage() {
       setSelection(initialSelection);
       setMessage({
         type: 'success',
-        text: `Pedido ${pedidoCriado.numeroPedido} criado com sucesso.`,
+        text: `Pedido ${pedidoComItens.numeroPedido} criado e enviado para conferência.`,
       });
     } catch (error) {
+      const pedidoParcial = pedidoCriado;
+      if (pedidoParcial) setPedidos((current) => [pedidoParcial, ...current]);
+      const detalhe = error instanceof Error ? error.message : 'Erro inesperado.';
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Não foi possível criar o pedido.',
+        text: pedidoCriado
+          ? `O pedido ${numeroPedido} foi criado, mas não foi possível salvar todos os itens ou iniciar a conferência. Confira o pedido antes de tentar novamente. ${detalhe}`
+          : `Não foi possível criar o pedido. ${detalhe}`,
       });
     } finally {
       setSaving(false);
     }
-  }
-
-  function handleConferir(pedido: Pedido) {
-    setConferidos((current) => ({
-      ...current,
-      [pedido.id]: true,
-    }));
-    setMessage({
-      type: 'success',
-      text: `Pedido ${pedido.numeroPedido} marcado como conferido na interface.`,
-    });
   }
 
   return (
@@ -278,15 +286,6 @@ export default function PedidosPage() {
                   <option value={1}>Filial 1</option>
                   <option value={2}>Filial 2</option>
                   <option value={3}>Filial 3</option>
-                </select>
-              </label>
-
-              <label className="form-field">
-                <span>Status</span>
-                <select name="status" value={form.status} onChange={handleFieldChange}>
-                  <option value="Aberto">Aberto</option>
-                  <option value="EmConferencia">Em conferência</option>
-                  <option value="Conferido">Conferido</option>
                 </select>
               </label>
 
@@ -449,8 +448,7 @@ export default function PedidosPage() {
               </thead>
               <tbody>
                 {pedidos.map((pedido) => {
-                  const statusFinal = conferidos[pedido.id] ? 'Conferido' : pedido.status || 'Aberto';
-                  const statusClass = statusFinal === 'Conferido' ? 'normal' : statusFinal === 'EmConferencia' ? 'low' : 'empty';
+                  const statusClass = pedido.status === 'Confirmado' ? 'normal' : pedido.status === 'EmConferencia' ? 'low' : 'empty';
 
                   return (
                     <tr key={pedido.id}>
@@ -458,7 +456,7 @@ export default function PedidosPage() {
                       <td>{pedido.numeroPedido}</td>
                       <td>{pedido.filialId}</td>
                       <td>
-                        <span className={`status-badge ${statusClass}`}>{statusFinal}</span>
+                        <span className={`status-badge ${statusClass}`}>{pedido.status || 'Aberto'}</span>
                       </td>
                       <td>
                         {new Intl.NumberFormat('pt-BR', {
@@ -468,11 +466,13 @@ export default function PedidosPage() {
                       </td>
                       <td>{pedido.dataPedido ? new Date(pedido.dataPedido).toLocaleString('pt-BR') : '—'}</td>
                       <td>
-                        <div className="inline-actions">
-                          <button type="button" onClick={() => handleConferir(pedido)}>
-                            {conferidos[pedido.id] ? 'Conferido' : 'Conferir'}
-                          </button>
-                        </div>
+                        {pedido.status === 'Confirmado' ? (
+                          <span>Conferido</span>
+                        ) : (
+                          <Link href={`/conferencia?pedidoId=${pedido.id}`} className="ghost-button inline-link">
+                            Conferir itens
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   );

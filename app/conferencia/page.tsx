@@ -5,16 +5,35 @@ import { useEffect, useMemo, useState } from 'react';
 import BarcodeScannerInput from '@/components/barcode/BarcodeScannerInput';
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
+import { parseOrderItems, type PedidoItemDetalhado } from '@/lib/order-items';
 import type { Pedido, Produto } from '@/types/inventory';
+
+type RegistroConferencia = {
+  pedidoId: number;
+  produtoId: number;
+  quantidadeRecebida: number;
+  quantidadeEsperada: number;
+  status: string;
+  dataConferencia?: string | null;
+};
+
+function getRegistroItem(registros: RegistroConferencia[], produtoId: number) {
+  return registros.find((registro) => registro.produtoId === produtoId) ?? null;
+}
 
 export default function ConferenciaPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [quantidades, setQuantidades] = useState<Record<number, { pedida: number; enviada: number }>>({});
+  const [conferenciasPorPedido, setConferenciasPorPedido] = useState<Record<number, RegistroConferencia[]>>({});
   const [loading, setLoading] = useState(true);
+  const [loadingConferencia, setLoadingConferencia] = useState(false);
+  const [savingItem, setSavingItem] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [conferenciaLoadError, setConferenciaLoadError] = useState<string | null>(null);
   const [codigoLeitura, setCodigoLeitura] = useState('');
-  const [quantidadePorLeitura, setQuantidadePorLeitura] = useState<number>(1);
+  const [quantidadePorLeitura, setQuantidadePorLeitura] = useState(1);
+  const [quantidadeRecebida, setQuantidadeRecebida] = useState('0');
   const [pedidoSelecionadoId, setPedidoSelecionadoId] = useState<number | null>(null);
 
   async function loadPedidos() {
@@ -26,22 +45,20 @@ export default function ConferenciaPage() {
 
       setPedidos(pedidosData);
       setProdutos(produtosData);
-
-      const valoresIniciais: Record<number, { pedida: number; enviada: number }> = {};
-      pedidosData.forEach((pedido, index) => {
-        const pedidaBase = 8 + ((pedido.id + index) % 9) * 3;
-        valoresIniciais[pedido.id] = {
-          pedida: pedidaBase,
-          enviada: pedidaBase + (pedido.id % 3 === 0 ? Math.ceil(pedidaBase * 0.35) : 0),
-        };
-      });
-
-      setQuantidades((current) => ({ ...current, ...valoresIniciais }));
+      const pedidoSolicitadoId = Number(new URLSearchParams(window.location.search).get('pedidoId'));
+      if (
+        Number.isSafeInteger(pedidoSolicitadoId)
+        && pedidosData.some((pedido) => pedido.id === pedidoSolicitadoId
+          && pedido.status !== 'Confirmado'
+          && pedido.status !== 'Cancelado')
+      ) {
+        setPedidoSelecionadoId(pedidoSolicitadoId);
+      }
     } catch (error) {
       console.error('Erro ao carregar pedidos para conferência:', error);
       setMessage({
         type: 'error',
-        text: 'Não foi possível carregar os pedidos para conferência.',
+        text: error instanceof Error ? error.message : 'Não foi possível carregar os pedidos para conferência.',
       });
     } finally {
       setLoading(false);
@@ -54,18 +71,301 @@ export default function ConferenciaPage() {
       window.location.href = '/login';
       return;
     }
+    if (!hasAnyRole(normalizeRole(currentUser.cargo), ['CONFERENTE', 'GERENTE', 'CEO'])) {
+      setLoading(false);
+      return;
+    }
     loadPedidos();
   }, []);
 
   const usuarioAtual = getCurrentUser();
   const isAutorizado = !!usuarioAtual && hasAnyRole(normalizeRole(usuarioAtual.cargo), ['CONFERENTE', 'GERENTE', 'CEO']);
 
+  const pedidosPendentes = useMemo(
+    () => pedidos.filter((pedido) => pedido.status !== 'Confirmado' && pedido.status !== 'Cancelado'),
+    [pedidos],
+  );
+  const pedidoSelecionado = useMemo(
+    () => pedidosPendentes.find((pedido) => pedido.id === pedidoSelecionadoId) ?? null,
+    [pedidosPendentes, pedidoSelecionadoId],
+  );
+  const itensDoPedido = useMemo(
+    () => pedidoSelecionado ? parseOrderItems(pedidoSelecionado.observacao, produtos) : [],
+    [pedidoSelecionado, produtos],
+  );
+  const conferenciasDoPedido = pedidoSelecionado
+    ? conferenciasPorPedido[pedidoSelecionado.id] ?? []
+    : [];
+  const itemAtual = useMemo(
+    () => itensDoPedido.find((item) => !getRegistroItem(conferenciasDoPedido, item.produtoId)) ?? null,
+    [conferenciasDoPedido, itensDoPedido],
+  );
+  const quantidadeItensConferidos = itensDoPedido.filter(
+    (item) => getRegistroItem(conferenciasDoPedido, item.produtoId),
+  ).length;
+  const excessosNoPedidoSelecionado = conferenciasDoPedido.filter(
+    (registro) => registro.quantidadeRecebida > registro.quantidadeEsperada,
+  ).length;
+  const pedidosParaConferencia = useMemo(
+    () => pedidos.filter((pedido) => pedido.status === 'EmConferencia').length,
+    [pedidos],
+  );
+
+  useEffect(() => {
+    if (pedidosPendentes.length === 0) {
+      setPedidoSelecionadoId(null);
+      return;
+    }
+
+    if (!pedidoSelecionadoId || !pedidosPendentes.some((pedido) => pedido.id === pedidoSelecionadoId)) {
+      setPedidoSelecionadoId(pedidosPendentes[0].id);
+    }
+  }, [pedidoSelecionadoId, pedidosPendentes]);
+
+  useEffect(() => {
+    if (pedidoSelecionadoId === null) {
+      setLoadingConferencia(false);
+      setConferenciaLoadError(null);
+      return;
+    }
+
+    let active = true;
+    setLoadingConferencia(true);
+    setConferenciaLoadError(null);
+
+    apiFetch<RegistroConferencia[]>(`/api/pedidos/${pedidoSelecionadoId}/conferencia`)
+      .then((registros) => {
+        if (active) {
+          setConferenciasPorPedido((current) => ({
+            ...current,
+            [pedidoSelecionadoId]: registros,
+          }));
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          const errorMessage = error instanceof Error ? error.message : 'Não foi possível carregar o progresso da conferência.';
+          setConferenciaLoadError(errorMessage);
+          setMessage({ type: 'error', text: errorMessage });
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingConferencia(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [pedidoSelecionadoId]);
+
+  useEffect(() => {
+    setCodigoLeitura('');
+    setQuantidadeRecebida('0');
+  }, [itemAtual?.produtoId, pedidoSelecionadoId]);
+
+  function handleScannerScan(codigo: string) {
+    const codigoLimpo = codigo.trim();
+    if (!codigoLimpo) {
+      setMessage({ type: 'error', text: 'Código vazio. Escaneie novamente.' });
+      return;
+    }
+
+    if (!pedidoSelecionado || !itemAtual) {
+      setMessage({ type: 'error', text: 'Selecione um pedido e um item pendente antes de escanear.' });
+      return;
+    }
+
+    const produtoLido = produtos.find((produto) => {
+      const codigoProduto = produto.codigoBarras?.trim();
+      if (!codigoProduto) return false;
+      return codigoProduto === codigoLimpo
+        || codigoProduto.replace(/\D/g, '') === codigoLimpo.replace(/\D/g, '');
+    });
+
+    if (!produtoLido) {
+      setMessage({ type: 'error', text: `Código de barras não cadastrado: ${codigoLimpo}` });
+      return;
+    }
+
+    if (produtoLido.id !== itemAtual.produtoId) {
+      setMessage({
+        type: 'error',
+        text: `Agora confira ${itemAtual.nome}. O código lido corresponde a ${produtoLido.nome}.`,
+      });
+      setCodigoLeitura('');
+      return;
+    }
+
+    const quantidadeAtual = Number(quantidadeRecebida) || 0;
+    const quantidadeLida = Math.max(1, Math.trunc(quantidadePorLeitura));
+    const novaQuantidade = quantidadeAtual + quantidadeLida;
+    setQuantidadeRecebida(String(novaQuantidade));
+    setCodigoLeitura('');
+    setMessage({
+      type: novaQuantidade > itemAtual.quantidade ? 'error' : 'success',
+      text: `${produtoLido.nome}: ${novaQuantidade} de ${itemAtual.quantidade} unidade(s) conferida(s).`,
+    });
+  }
+
+  async function handleFinalizarPedido(
+    pedido: Pedido,
+    itens: PedidoItemDetalhado[],
+    registros = conferenciasPorPedido[pedido.id] ?? [],
+  ) {
+    if (itens.length === 0 || !itens.every((item) => getRegistroItem(registros, item.produtoId))) {
+      setMessage({ type: 'error', text: 'Confira todos os itens antes de finalizar o pedido.' });
+      return;
+    }
+
+    setFinalizing(true);
+    setMessage(null);
+
+    try {
+      const pedidoAtualizado = await apiFetch<Pedido>(`/api/pedidos/${pedido.id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'Confirmado' }),
+      });
+      setPedidos((current) => current.map((item) => item.id === pedido.id ? pedidoAtualizado : item));
+      setMessage({ type: 'success', text: `Pedido ${pedido.numeroPedido} conferido e finalizado.` });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível finalizar o pedido.',
+      });
+    } finally {
+      setFinalizing(false);
+    }
+  }
+
+  async function handleConfirmarItem() {
+    if (!pedidoSelecionado || !itemAtual) return;
+
+    const quantidade = Number(quantidadeRecebida);
+    if (quantidadeRecebida.trim() === '' || !Number.isSafeInteger(quantidade) || quantidade < 0) {
+      setMessage({ type: 'error', text: 'Informe uma quantidade inteira igual ou maior que zero.' });
+      return;
+    }
+
+    setSavingItem(true);
+    setMessage(null);
+
+    try {
+      if (pedidoSelecionado.status === 'Aberto') {
+        const pedidoEmConferencia = await apiFetch<Pedido>(`/api/pedidos/${pedidoSelecionado.id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'EmConferencia' }),
+        });
+        setPedidos((current) => current.map((pedido) =>
+          pedido.id === pedidoSelecionado.id ? pedidoEmConferencia : pedido,
+        ));
+      }
+
+      const rotaConferencia = `/api/pedidos/${pedidoSelecionado.id}/conferencia`;
+      const dadosConferencia = {
+        produtoId: itemAtual.produtoId,
+        quantidadeRecebida: quantidade,
+        observacao: `Conferência individual de ${itemAtual.nome}.`,
+      };
+
+      try {
+        await apiFetch<void>(rotaConferencia, {
+          method: 'POST',
+          body: JSON.stringify(dadosConferencia),
+        });
+      } catch (error) {
+        if (!(error instanceof Error) || !error.message.includes('Produto não está no pedido.')) {
+          throw error;
+        }
+
+        const produto = produtos.find((item) => item.id === itemAtual.produtoId);
+        if (!produto) throw new Error(`O produto ${itemAtual.nome} não foi encontrado no cadastro.`);
+
+        try {
+          const pedidoComItem = await apiFetch<Pedido>(`/api/pedidos/${pedidoSelecionado.id}/itens`, {
+            method: 'POST',
+            body: JSON.stringify({
+              produtoId: itemAtual.produtoId,
+              quantidade: itemAtual.quantidade,
+              precoUnitario: Number(produto.precoVenda || 0),
+            }),
+          });
+          setPedidos((current) => current.map((pedido) =>
+            pedido.id === pedidoSelecionado.id ? pedidoComItem : pedido,
+          ));
+        } catch (adicionarItemError) {
+          const detalhe = adicionarItemError instanceof Error ? adicionarItemError.message : 'Erro inesperado.';
+          throw new Error(`Este pedido antigo precisa ter os itens registrados antes da conferência. Não foi possível preparar ${itemAtual.nome}: ${detalhe}`);
+        }
+
+        await apiFetch<void>(rotaConferencia, {
+          method: 'POST',
+          body: JSON.stringify(dadosConferencia),
+        });
+      }
+
+      const novoRegistro: RegistroConferencia = {
+        pedidoId: pedidoSelecionado.id,
+        produtoId: itemAtual.produtoId,
+        quantidadeRecebida: quantidade,
+        quantidadeEsperada: itemAtual.quantidade,
+        status: quantidade === itemAtual.quantidade ? 'Conferido' : 'Parcial',
+      };
+      const registrosAtualizados = [...conferenciasDoPedido, novoRegistro];
+      setConferenciasPorPedido((current) => ({
+        ...current,
+        [pedidoSelecionado.id]: registrosAtualizados,
+      }));
+
+      if (quantidade > 0) {
+        try {
+          await apiFetch('/api/MovimentacoesEstoque', {
+            method: 'POST',
+            body: JSON.stringify({
+              produtoId: itemAtual.produtoId,
+              filialId: pedidoSelecionado.filialId,
+              tipo: 'Entrada',
+              quantidade,
+              observacao: `Conferência do pedido ${pedidoSelecionado.numeroPedido}: ${itemAtual.nome}`,
+            }),
+          });
+        } catch (error) {
+          setMessage({
+            type: 'error',
+            text: `A conferência de ${itemAtual.nome} foi registrada, mas o estoque não foi atualizado: ${error instanceof Error ? error.message : 'Erro inesperado.'}`,
+          });
+          return;
+        }
+      }
+
+      const todosConferidosDepoisDeste = itensDoPedido.every((item) =>
+        getRegistroItem(registrosAtualizados, item.produtoId),
+      );
+
+      if (todosConferidosDepoisDeste) {
+        await handleFinalizarPedido(pedidoSelecionado, itensDoPedido, registrosAtualizados);
+      } else {
+        const proximoItem = itensDoPedido.find((item) => !getRegistroItem(registrosAtualizados, item.produtoId));
+        setMessage({
+          type: 'success',
+          text: `${itemAtual.nome} registrado. Próximo item: ${proximoItem?.nome ?? 'conferência finalizada'}.`,
+        });
+      }
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : `Não foi possível registrar a conferência de ${itemAtual.nome}.`,
+      });
+    } finally {
+      setSavingItem(false);
+    }
+  }
+
   if (!isAutorizado) {
     return (
       <main className="page-shell">
         <div className="page-header">
           <h1>Conferência</h1>
-          <Link href="/" className="secondary-button link-button">Voltar ao dashboard</Link>
+          <Link href="/" className="secondary-button link-button">Voltar</Link>
         </div>
         <div className="message error">
           Acesso restrito. Apenas conferentes, gerentes ou CEO podem acessar a conferência.
@@ -74,347 +374,222 @@ export default function ConferenciaPage() {
     );
   }
 
-  const pedidosRecebidos = pedidos.length;
-  const pedidosParaConferencia = useMemo(
-    () => pedidos.filter((pedido) => pedido.status === 'EmConferencia' || pedido.status === 'Conferido').length,
-    [pedidos],
-  );
-  const pedidosPendentes = useMemo(
-    () => pedidos.filter((pedido) => pedido.status !== 'Conferido'),
-    [pedidos],
-  );
-  const pedidosComExcesso = useMemo(
-    () => pedidos.filter((pedido) => {
-      const registro = quantidades[pedido.id] ?? { pedida: 0, enviada: 0 };
-      return registro.enviada > registro.pedida * 1.2;
-    }).length,
-    [pedidos, quantidades],
-  );
-  const pedidoSelecionado = useMemo(
-    () => pedidosPendentes.find((pedido) => pedido.id === pedidoSelecionadoId) ?? pedidosPendentes[0] ?? null,
-    [pedidosPendentes, pedidoSelecionadoId],
-  );
-
-  useEffect(() => {
-    if (pedidoSelecionado && !pedidoSelecionadoId) {
-      setPedidoSelecionadoId(pedidoSelecionado.id);
-    }
-  }, [pedidoSelecionado, pedidoSelecionadoId]);
-
-  function handleQuantidadeChange(pedidoId: number, field: 'pedida' | 'enviada', value: string) {
-    const numero = Number(value) || 0;
-
-    setQuantidades((current) => ({
-      ...current,
-      [pedidoId]: {
-        pedida: field === 'pedida' ? numero : current[pedidoId]?.pedida ?? 0,
-        enviada: field === 'enviada' ? numero : current[pedidoId]?.enviada ?? 0,
-      },
-    }));
-  }
-
-  function handleScannerScan(codigo: string) {
-    const codigoLimpo = codigo.trim();
-    if (!codigoLimpo) {
-      setMessage({
-        type: 'error',
-        text: 'Código vazio. Escaneie novamente.',
-      });
-      return;
-    }
-
-    if (!pedidoSelecionado) {
-      setMessage({
-        type: 'error',
-        text: 'Selecione um pedido antes de escanear o produto.',
-      });
-      return;
-    }
-
-    const quantidadePorEscaneamento = Math.max(1, Number(quantidadePorLeitura) || 1);
-    const produtoEncontrado = produtos.find((produto) => {
-      const codigoProduto = produto.codigoBarras?.trim();
-      if (!codigoProduto) return false;
-      return codigoProduto === codigoLimpo || codigoProduto.replace(/\D/g, '') === codigoLimpo.replace(/\D/g, '');
-    });
-
-    if (!produtoEncontrado) {
-      setMessage({
-        type: 'error',
-        text: `Código de barras não cadastrado: ${codigoLimpo}`,
-      });
-      setCodigoLeitura(codigoLimpo);
-      return;
-    }
-
-    const pedidoComProduto = pedidoSelecionado.observacao?.toLowerCase().includes((produtoEncontrado.nome ?? '').toLowerCase());
-    if (!pedidoComProduto) {
-      setMessage({
-        type: 'error',
-        text: `O produto ${produtoEncontrado.nome} não pertence ao pedido ${pedidoSelecionado.numeroPedido}.`,
-      });
-      setCodigoLeitura(codigoLimpo);
-      return;
-    }
-
-    const registroAtual = quantidades[pedidoSelecionado.id] ?? { pedida: 0, enviada: 0 };
-    const pedida = Math.max(registroAtual.pedida, 0);
-    const quantidadeAtual = Math.max(registroAtual.enviada, 0);
-    const novaQuantidadeEnviada = Math.min(quantidadeAtual + quantidadePorEscaneamento, pedida || Number.MAX_SAFE_INTEGER);
-
-    setQuantidades((current) => ({
-      ...current,
-      [pedidoSelecionado.id]: {
-        pedida,
-        enviada: novaQuantidadeEnviada,
-      },
-    }));
-
-    setCodigoLeitura(codigoLimpo);
-
-    if (novaQuantidadeEnviada >= pedida && pedida > 0) {
-      setPedidos((current) =>
-        current.map((item) =>
-          item.id === pedidoSelecionado.id ? { ...item, status: 'Conferido' } : item,
-        ),
-      );
-      setMessage({
-        type: 'success',
-        text: `Quantidade concluída para ${produtoEncontrado.nome}. Pedido ${pedidoSelecionado.numeroPedido} conferido.`,
-      });
-      return;
-    }
-
-    setMessage({
-      type: 'success',
-      text: `${produtoEncontrado.nome} conferido. ${novaQuantidadeEnviada}/${pedida} unidades.`,
-    });
-  }
-
-  async function handleConferir(pedido: Pedido) {
-    const registroAtual = quantidades[pedido.id] ?? { pedida: 0, enviada: 0 };
-    const quantidadeEnviada = Math.max(0, Number(registroAtual.enviada) || 0);
-
-    setPedidos((current) =>
-      current.map((item) =>
-        item.id === pedido.id ? { ...item, status: 'Conferido' } : item,
-      ),
-    );
-
-    try {
-      if (quantidadeEnviada > 0) {
-        await apiFetch('/api/MovimentacoesEstoque', {
-          method: 'POST',
-          body: JSON.stringify({
-            produtoId: pedido.id,
-            filialId: pedido.filialId,
-            tipo: 'Entrada',
-            quantidade: quantidadeEnviada,
-          }),
-        });
-      }
-
-      setMessage({
-        type: 'success',
-        text: `Pedido ${pedido.numeroPedido} enviado para conferência concluída. Estoque atualizado em ${quantidadeEnviada} unidade(s).`,
-      });
-    } catch (error) {
-      setMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Erro ao registrar a entrada no estoque.',
-      });
-    }
-  }
-
   return (
     <main className="page-shell">
       <div className="page-header">
         <h1>Conferência</h1>
         <div className="header-actions">
-          <Link href="/" className="secondary-button link-button">Voltar ao dashboard</Link>
-          <Link href="/pedidos" className="primary-button link-button">Pedidos</Link>
+          <Link href="/pedidos" className="secondary-button link-button">Pedidos</Link>
+          <Link href="/produtos" className="primary-button link-button">Produtos</Link>
         </div>
       </div>
 
-      {message && <div className={`message ${message.type}`}>{message.text}</div>}
+      {message && <div className={`message ${message.type}`} role={message.type === 'error' ? 'alert' : 'status'}>{message.text}</div>}
 
-      <div className="card" style={{ marginBottom: '24px' }}>
+      <div className="card conference-orders-card">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Leitor</p>
-            <h2>Conferência por scanner</h2>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: '16px', alignItems: 'end' }}>
-          <label className="form-field full-width" style={{ marginTop: '8px' }}>
-            <span>Código do pedido / scanner</span>
-            <BarcodeScannerInput
-              type="text"
-              value={codigoLeitura}
-              onChange={(value) => setCodigoLeitura(value)}
-              onScan={handleScannerScan}
-              placeholder="Escaneie o código do produto ou digite o número"
-              autoFocus
-            />
-          </label>
-
-          <label className="form-field full-width" style={{ marginTop: '8px' }}>
-            <span>Quantidade por leitura</span>
-            <input
-              type="number"
-              min="1"
-              value={quantidadePorLeitura}
-              onChange={(event) => setQuantidadePorLeitura(Math.max(1, Number(event.target.value) || 1))}
-            />
-          </label>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: '24px' }}>
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Pendentes</p>
-            <h2>Pedidos aguardando conferência</h2>
-          </div>
-        </div>
-
-        <div className="stacked-list" style={{ display: 'grid', gap: '12px' }}>
-          {pedidosPendentes.length === 0 ? (
-            <div className="loading-card">Nenhum pedido pendente.</div>
-          ) : (
-            pedidosPendentes.map((pedido) => (
-              <button
-                key={pedido.id}
-                type="button"
-                onClick={() => setPedidoSelecionadoId(pedido.id)}
-                className="secondary-button"
-                style={{
-                  width: '100%',
-                  justifyContent: 'space-between',
-                  textAlign: 'left',
-                  padding: '14px 16px',
-                  display: 'flex',
-                  border: pedido.id === pedidoSelecionado?.id ? '2px solid #4f8ef7' : '1px solid #d7e4f5',
-                  background: pedido.id === pedidoSelecionado?.id ? '#eef6ff' : '#fff',
-                }}
-              >
-                <span>
-                  <strong>{pedido.numeroPedido}</strong>
-                </span>
-                <span>{pedido.filialId}</span>
-                <span>{pedido.dataPedido ? new Date(pedido.dataPedido).toLocaleString('pt-BR') : '—'}</span>
-                <span>{pedido.status || 'Aberto'}</span>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-
-      <section className="stats-grid" style={{ marginBottom: '24px' }}>
-        <article className="stat-card">
-          <span className="stat-label">Pedidos recebidos</span>
-          <strong>{pedidosRecebidos}</strong>
-          <small>Total no sistema</small>
-        </article>
-
-        <article className="stat-card warning">
-          <span className="stat-label">Enviados para conferência</span>
-          <strong>{pedidosParaConferencia}</strong>
-          <small>Já encaminhados</small>
-        </article>
-
-        <article className="stat-card danger">
-          <span className="stat-label">Pendentes</span>
-          <strong>{pedidosPendentes.length}</strong>
-          <small>Aguardando envio</small>
-        </article>
-
-        <article className="stat-card danger">
-          <span className="stat-label">Com excesso</span>
-          <strong>{pedidosComExcesso}</strong>
-          <small>Acima do pedido</small>
-        </article>
-      </section>
-
-      <div className="card">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Fluxo</p>
-            <h2>Conferência do pedido selecionado</h2>
+            <p className="eyebrow">Fila de conferência</p>
+            <h2>Selecione um pedido</h2>
           </div>
         </div>
 
         {loading ? (
-          <div className="loading-card">Carregando conferência...</div>
-        ) : !pedidoSelecionado ? (
-          <div className="loading-card">Selecione um pedido pendente para conferir.</div>
+          <div className="loading-card">Carregando pedidos...</div>
+        ) : pedidosPendentes.length === 0 ? (
+          <div className="loading-card">Nenhum pedido aguardando conferência.</div>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Pedido</th>
-                  <th>Filial</th>
-                  <th>Status</th>
-                  <th>Data</th>
-                  <th>Observação</th>
-                  <th>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr key={pedidoSelecionado.id} className={pedidoSelecionado.status === 'Conferido' ? 'row-alert' : ''}>
-                  <td>{pedidoSelecionado.id}</td>
-                  <td>{pedidoSelecionado.numeroPedido}</td>
-                  <td>{pedidoSelecionado.filialId}</td>
-                  <td>
-                    <span className={`status-badge ${pedidoSelecionado.status === 'Conferido' ? 'normal' : pedidoSelecionado.status === 'EmConferencia' ? 'low' : 'empty'}`}>
-                      {pedidoSelecionado.status || 'Aberto'}
-                    </span>
-                  </td>
-                  <td>{pedidoSelecionado.dataPedido ? new Date(pedidoSelecionado.dataPedido).toLocaleString('pt-BR') : '—'}</td>
-                  <td>
-                    <div className="stacked-cell">
-                      <span>{pedidoSelecionado.observacao || '—'}</span>
-                      {((quantidades[pedidoSelecionado.id]?.enviada ?? 0) > (quantidades[pedidoSelecionado.id]?.pedida ?? 0) * 1.2) && (
-                        <strong className="alert-text">Alerta: quantidade enviada acima do pedido</strong>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="quantity-stack">
-                      <label className="mini-field">
-                        <span>Pedida</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={quantidades[pedidoSelecionado.id]?.pedida ?? 0}
-                          onChange={(event) => handleQuantidadeChange(pedidoSelecionado.id, 'pedida', event.target.value)}
-                        />
-                      </label>
-                      <label className="mini-field">
-                        <span>Enviada</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={quantidades[pedidoSelecionado.id]?.enviada ?? 0}
-                          onChange={(event) => handleQuantidadeChange(pedidoSelecionado.id, 'enviada', event.target.value)}
-                        />
-                      </label>
-                      <div className="inline-actions" style={{ marginTop: '8px' }}>
-                        <button type="button" onClick={() => handleConferir(pedidoSelecionado)}>
-                          {pedidoSelecionado.status === 'Conferido' ? 'Conferido' : 'Conferir'}
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="conference-order-list">
+            {pedidosPendentes.map((pedido) => {
+              const itens = parseOrderItems(pedido.observacao, produtos);
+              const registros = conferenciasPorPedido[pedido.id];
+              const itensConferidos = registros
+                ? itens.filter((item) => getRegistroItem(registros, item.produtoId)).length
+                : null;
+
+              return (
+                <button
+                  key={pedido.id}
+                  type="button"
+                  className={`conference-order-option${pedido.id === pedidoSelecionadoId ? ' selected' : ''}`}
+                  aria-pressed={pedido.id === pedidoSelecionadoId}
+                  onClick={() => {
+                    setPedidoSelecionadoId(pedido.id);
+                    setMessage(null);
+                  }}
+                >
+                  <span>
+                    <strong>{pedido.numeroPedido}</strong>
+                    <small>
+                      {itens.length} produto(s) · {itensConferidos === null ? 'selecione para ver o progresso' : `${itensConferidos}/${itens.length} conferidos`}
+                    </small>
+                  </span>
+                  <span className="conference-order-meta">Filial {pedido.filialId}</span>
+                  <span className="conference-order-meta">{pedido.status || 'Aberto'}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
+
+      <section className="stats-grid conference-stats">
+        <article className="stat-card">
+          <span className="stat-label">Pedidos recebidos</span>
+          <strong>{pedidos.length}</strong>
+          <small>Total no sistema</small>
+        </article>
+        <article className="stat-card warning">
+          <span className="stat-label">Em conferência</span>
+          <strong>{pedidosParaConferencia}</strong>
+          <small>Pedidos em andamento</small>
+        </article>
+        <article className="stat-card danger">
+          <span className="stat-label">Pendentes</span>
+          <strong>{pedidosPendentes.length}</strong>
+          <small>Aguardando conferência</small>
+        </article>
+        <article className="stat-card danger">
+          <span className="stat-label">Excessos no pedido atual</span>
+          <strong>{excessosNoPedidoSelecionado}</strong>
+          <small>Itens acima do solicitado</small>
+        </article>
+      </section>
+
+      <section className="card">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Conferência individual</p>
+            <h2>{pedidoSelecionado ? `Pedido ${pedidoSelecionado.numeroPedido}` : 'Pedido selecionado'}</h2>
+          </div>
+          {pedidoSelecionado && itensDoPedido.length > 0 && (
+            <span className="status-badge low">
+              {quantidadeItensConferidos}/{itensDoPedido.length} itens
+            </span>
+          )}
+        </div>
+
+        {loading || loadingConferencia ? (
+          <div className="loading-card">Carregando itens do pedido...</div>
+        ) : !pedidoSelecionado ? (
+          <div className="loading-card">Selecione um pedido pendente para conferir.</div>
+        ) : conferenciaLoadError ? (
+          <div className="message error">{conferenciaLoadError}</div>
+        ) : itensDoPedido.length === 0 ? (
+          <div className="message error">
+            Não foi possível identificar os produtos deste pedido. Confira se ele foi criado com os itens detalhados ou crie um novo pedido pela tela de Pedidos.
+          </div>
+        ) : (
+          <>
+            <div className="conference-item-workspace">
+              <div className="conference-current-item">
+                {itemAtual ? (
+                  <>
+                    <p className="eyebrow">Item {itensDoPedido.findIndex((item) => item.produtoId === itemAtual.produtoId) + 1} de {itensDoPedido.length}</p>
+                    <h3>{itemAtual.nome}</h3>
+                    <p className="conference-expected">
+                      Quantidade solicitada: <strong>{itemAtual.quantidade}</strong>
+                    </p>
+
+                    <label className="form-field">
+                      <span>Quantidade recebida</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={quantidadeRecebida}
+                        onChange={(event) => setQuantidadeRecebida(event.target.value)}
+                      />
+                    </label>
+
+                    {Number(quantidadeRecebida) > itemAtual.quantidade && (
+                      <div className="message error conference-overage">
+                        A quantidade recebida está acima do pedido.
+                      </div>
+                    )}
+
+                    <div className="conference-scanner-row">
+                      <label className="form-field">
+                        <span>Escanear o produto atual</span>
+                        <BarcodeScannerInput
+                          key={`${pedidoSelecionado.id}-${itemAtual.produtoId}`}
+                          type="text"
+                          value={codigoLeitura}
+                          onChange={setCodigoLeitura}
+                          onScan={handleScannerScan}
+                          placeholder={`Código de ${itemAtual.nome}`}
+                          autoFocus
+                        />
+                      </label>
+                      <label className="form-field">
+                        <span>Unidades por leitura</span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={quantidadePorLeitura}
+                          onChange={(event) => setQuantidadePorLeitura(Math.max(1, Math.trunc(Number(event.target.value) || 1)))}
+                        />
+                      </label>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={savingItem || finalizing || loadingConferencia}
+                      onClick={handleConfirmarItem}
+                    >
+                      {savingItem ? 'Registrando item...' : 'Confirmar item e avançar'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="eyebrow">Itens conferidos</p>
+                    <h3>Todos os produtos deste pedido foram verificados.</h3>
+                    {pedidoSelecionado.status === 'Confirmado' ? (
+                      <div className="message success">Pedido concluído.</div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="primary-button"
+                        disabled={finalizing}
+                        onClick={() => handleFinalizarPedido(pedidoSelecionado, itensDoPedido)}
+                      >
+                        {finalizing ? 'Finalizando...' : 'Finalizar pedido'}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <ol className="conference-item-list">
+                {itensDoPedido.map((item, index) => {
+                  const registro = getRegistroItem(conferenciasDoPedido, item.produtoId);
+                  const isAtual = itemAtual?.produtoId === item.produtoId;
+
+                  return (
+                    <li
+                      key={item.produtoId}
+                      className={`conference-item-row${registro?.status === 'Conferido' ? ' completed' : registro ? ' partial' : ''}${isAtual ? ' current' : ''}`}
+                    >
+                      <span className="conference-item-number">{index + 1}</span>
+                      <span className="conference-item-description">
+                        <strong>{item.nome}</strong>
+                        <small>Solicitado: {item.quantidade}</small>
+                      </span>
+                      <span className="conference-item-result">
+                        {registro
+                          ? `${registro.status === 'Conferido' ? 'Conferido' : 'Parcial'} · ${registro.quantidadeRecebida}/${registro.quantidadeEsperada}`
+                          : 'Pendente'}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          </>
+        )}
+      </section>
     </main>
   );
 }

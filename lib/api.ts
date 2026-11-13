@@ -66,9 +66,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     throw new Error(errorText || 'Erro ao consultar a API');
   }
 
-  if (response.status === 204) {
+  if (response.status === 204 || response.status === 205) {
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  const responseBody = await response.text();
+  if (!responseBody.trim()) {
+    return undefined as T;
+  }
+
+  return JSON.parse(responseBody) as T;
 }
