@@ -20,6 +20,11 @@ const initialForm = {
   ativo: true,
 };
 
+function getProductStockStatus(quantidade: number): 'normal' | 'baixo' | 'esgotado' {
+  if (quantidade <= 0) return 'esgotado';
+  return quantidade <= 5 ? 'baixo' : 'normal';
+}
+
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
@@ -29,10 +34,40 @@ export default function ProdutosPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState(initialForm);
   const [estoqueEdicao, setEstoqueEdicao] = useState<Record<number, string>>({});
+  const [buscaProduto, setBuscaProduto] = useState('');
+  const [categoriaFiltro, setCategoriaFiltro] = useState('todas');
+  const [statusFiltro, setStatusFiltro] = useState<'todos' | 'normal' | 'baixo' | 'esgotado'>('todos');
+  const [mostrarMovimentacoes, setMostrarMovimentacoes] = useState(false);
 
   const estoquePorProduto = useMemo(
     () => calcularEstoquePorProduto(movimentacoes),
     [movimentacoes],
+  );
+  const categoriasDisponiveis = useMemo(
+    () => Array.from(new Set(
+      produtos
+        .map((produto) => produto.idCategoria)
+        .filter((idCategoria): idCategoria is number => typeof idCategoria === 'number'),
+    )).sort((categoriaA, categoriaB) => categoriaA - categoriaB),
+    [produtos],
+  );
+  const produtosFiltrados = useMemo(() => {
+    const busca = buscaProduto.trim().toLocaleLowerCase('pt-BR');
+
+    return produtos.filter((produto) => {
+      if (categoriaFiltro !== 'todas' && String(produto.idCategoria) !== categoriaFiltro) return false;
+
+      const quantidade = estoquePorProduto.get(produto.id) ?? 0;
+      if (statusFiltro !== 'todos' && getProductStockStatus(quantidade) !== statusFiltro) return false;
+
+      if (!busca) return true;
+      return produto.nome.toLocaleLowerCase('pt-BR').includes(busca)
+        || (produto.codigoBarras ?? '').toLocaleLowerCase('pt-BR').includes(busca);
+    });
+  }, [buscaProduto, categoriaFiltro, estoquePorProduto, produtos, statusFiltro]);
+  const produtoPorId = useMemo(
+    () => new Map(produtos.map((produto) => [produto.id, produto])),
+    [produtos],
   );
 
   async function loadProdutos() {
@@ -365,7 +400,93 @@ export default function ProdutosPage() {
             <p className="eyebrow">Produtos</p>
             <h2>Lista atual</h2>
           </div>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => setMostrarMovimentacoes((current) => !current)}
+          >
+            {mostrarMovimentacoes ? 'Ocultar movimentações' : 'Movimentações'}
+          </button>
         </div>
+
+        <div className="filters-row product-filters-row">
+          <label className="form-field">
+            <span>Buscar produto</span>
+            <input
+              type="search"
+              value={buscaProduto}
+              onChange={(event) => setBuscaProduto(event.target.value)}
+              placeholder="Nome ou código de barras"
+            />
+          </label>
+
+          <label className="form-field">
+            <span>Categoria</span>
+            <select value={categoriaFiltro} onChange={(event) => setCategoriaFiltro(event.target.value)}>
+              <option value="todas">Todas as categorias</option>
+              {categoriasDisponiveis.map((idCategoria) => (
+                <option key={idCategoria} value={String(idCategoria)}>
+                  Categoria #{idCategoria}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="form-field">
+            <span>Status do estoque</span>
+            <select
+              value={statusFiltro}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value === 'todos' || value === 'normal' || value === 'baixo' || value === 'esgotado') {
+                  setStatusFiltro(value);
+                }
+              }}
+            >
+              <option value="todos">Todos</option>
+              <option value="normal">Disponível</option>
+              <option value="baixo">Baixo (até 5 unidades)</option>
+              <option value="esgotado">Esgotado</option>
+            </select>
+          </label>
+        </div>
+
+        {mostrarMovimentacoes && (
+          <section className="product-movements">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Estoque</p>
+                <h3>Histórico de movimentações</h3>
+              </div>
+            </div>
+            {movimentacoes.length === 0 ? (
+              <p className="notification-empty">Nenhuma movimentação registrada.</p>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Produto</th>
+                      <th>Tipo</th>
+                      <th>Quantidade</th>
+                      <th>Filial</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {movimentacoes.map((movimentacao, index) => (
+                      <tr key={`${movimentacao.produtoId}-${movimentacao.filialId}-${index}`}>
+                        <td>{produtoPorId.get(movimentacao.produtoId)?.nome ?? `Produto #${movimentacao.produtoId}`}</td>
+                        <td>{movimentacao.tipo}</td>
+                        <td>{movimentacao.quantidade}</td>
+                        <td>{movimentacao.filialId}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
 
         {loading ? (
           <div className="loading-card">Carregando produtos...</div>
@@ -383,7 +504,11 @@ export default function ProdutosPage() {
                 </tr>
               </thead>
               <tbody>
-                {produtos.map((produto) => (
+                {produtosFiltrados.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>Nenhum produto encontrado com esses filtros.</td>
+                  </tr>
+                ) : produtosFiltrados.map((produto) => (
                   <tr key={produto.id}>
                     <td>{produto.id}</td>
                     <td>{produto.nome}</td>

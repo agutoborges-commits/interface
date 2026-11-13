@@ -192,6 +192,16 @@ export function InventoryDashboard() {
   const semEstoque = produtos.filter(
     (produto) => produto.ativo && (quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0)) <= 0,
   ).length;
+  const produtosComMenorEstoque = useMemo(
+    () => produtos
+      .filter((produto) => produto.ativo)
+      .sort((produtoA, produtoB) => {
+        const estoqueA = quantidadeManual[produtoA.id] ?? (estoquePorProduto.get(produtoA.id) ?? 0);
+        const estoqueB = quantidadeManual[produtoB.id] ?? (estoquePorProduto.get(produtoB.id) ?? 0);
+        return estoqueA - estoqueB;
+      }),
+    [estoquePorProduto, produtos, quantidadeManual],
+  );
 
   async function handleSalvarEstoque(produto: Produto) {
     const quantidadeAtual = quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0);
@@ -417,39 +427,6 @@ export function InventoryDashboard() {
           </article>
         </section>
 
-        <section className="panel filters-panel">
-          <div className="panel-header">
-            <div>
-              <p className="eyebrow">Filtros</p>
-              <h2>Inventário</h2>
-            </div>
-          </div>
-
-          <div className="filters-row">
-            <label>
-              <span>Categoria</span>
-              <select defaultValue="todos">
-                <option value="todos">Todas</option>
-                <option value="alimentos">Alimentos</option>
-                <option value="bebidas">Bebidas</option>
-                <option value="limpeza">Limpeza</option>
-              </select>
-            </label>
-
-            <label>
-              <span>Status</span>
-              <select defaultValue="todos">
-                <option value="todos">Todos</option>
-                <option value="normal">Normal</option>
-                <option value="baixo">Baixo</option>
-                <option value="esgotado">Esgotado</option>
-              </select>
-            </label>
-
-            <button type="button" className="primary-button small-button">Movimento</button>
-          </div>
-        </section>
-
         <section className="content-grid">
           <div className="panel table-panel">
             {inventoryMessage && (
@@ -459,8 +436,8 @@ export function InventoryDashboard() {
             )}
             <div className="panel-header">
               <div>
-                <p className="eyebrow">Produtos</p>
-                <h2>Lista do estoque</h2>
+                <p className="eyebrow">Acompanhe o estoque</p>
+                <h2>Produtos com menor saldo</h2>
               </div>
               <Link href="/produtos" className="ghost-button inline-link">Ver todos</Link>
             </div>
@@ -477,8 +454,12 @@ export function InventoryDashboard() {
                     <th>Ação</th>
                   </tr>
                 </thead>
-                        <tbody>
-                  {produtos.slice(0, 5).map((produto) => {
+                <tbody>
+                  {produtosComMenorEstoque.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>Nenhum produto ativo cadastrado.</td>
+                    </tr>
+                  ) : produtosComMenorEstoque.slice(0, 5).map((produto) => {
                     const estoqueAtual = quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0);
                     const valorAtual = precoManual[produto.id] ?? Number(produto.precoVenda || 0);
                     const statusAtual = getProductStatus(estoqueAtual);

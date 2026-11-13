@@ -312,6 +312,15 @@ button {
   flex-wrap: wrap;
 }
 
+.product-movements {
+  margin: 24px 0;
+}
+
+.product-movements h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
 .ghost-button,
 .inline-link {
   background: #f8f8fb;
