@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, type FormEvent } from 'react';
-import { clearCurrentUser, getCurrentUser, getRegisteredUsers, saveCurrentUser, saveRegisteredUsers, ROLE_OPTIONS } from '@/lib/auth';
+import {
+  clearCurrentUser,
+  getCurrentUser,
+  getLoggedInAccounts,
+  getRegisteredUsers,
+  normalizeRole,
+  removeLoggedInAccount,
+  saveCurrentUser,
+  saveRegisteredUsers,
+  ROLE_OPTIONS,
+} from '@/lib/auth';
 import { saveSupabaseSession } from '@/lib/supabase';
 import type { AuthUser, RegisteredUser } from '@/lib/auth';
 
@@ -25,6 +35,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const currentUser = getCurrentUser();
+  const contasAtivas = getLoggedInAccounts();
 
   function persistLocalSession(user: AuthUser) {
     saveSupabaseSession({
@@ -117,11 +128,13 @@ export default function LoginPage() {
         throw new Error('Este e-mail já está cadastrado. Faça login com a senha da conta existente.');
       }
 
+      const cargoNormalizado = normalizeRole(registerForm.cargo || 'TRABALHADOR');
+
       const novoUsuario: RegisteredUser = {
         id: Date.now(),
         nome,
         email,
-        cargo: registerForm.cargo,
+        cargo: cargoNormalizado,
         senha,
       };
 
@@ -131,7 +144,7 @@ export default function LoginPage() {
         id: novoUsuario.id,
         nome,
         email,
-        cargo: registerForm.cargo,
+        cargo: cargoNormalizado,
       };
 
       persistLocalSession(usuario);
@@ -147,11 +160,24 @@ export default function LoginPage() {
   }
 
   function handleLogout() {
-    clearCurrentUser();
+    if (currentUser?.email) {
+      removeLoggedInAccount(currentUser.email);
+    } else {
+      clearCurrentUser();
+    }
+
     setMessage({ type: 'success', text: 'Você saiu da conta com sucesso.' });
     setShowRegister(false);
     setLoginForm(emptyLogin);
     setRegisterForm(emptyRegister);
+  }
+
+  function handleLogoutAccount(email: string) {
+    removeLoggedInAccount(email);
+    setMessage({
+      type: 'success',
+      text: 'Conta desconectada com sucesso.',
+    });
   }
 
   return (
@@ -164,7 +190,26 @@ export default function LoginPage() {
 
       {message && <div className={`message ${message.type}`} style={{ marginBottom: 16 }}>{message.text}</div>}
 
-      {currentUser && (
+      {contasAtivas.length > 0 && (
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
+          {contasAtivas.map((conta) => (
+            <button
+              key={conta.email}
+              type="button"
+              className="secondary-button"
+              onClick={() => handleLogoutAccount(conta.email)}
+              style={{
+                whiteSpace: 'nowrap',
+                opacity: currentUser?.email === conta.email ? 1 : 0.8,
+              }}
+            >
+              {currentUser?.email === conta.email ? 'Sair da conta' : `Sair (${conta.nome})`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {currentUser && !contasAtivas.some((conta) => conta.email === currentUser.email) && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
           <button type="button" className="secondary-button" onClick={handleLogout}>
             Sair da conta

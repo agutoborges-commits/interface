@@ -3,6 +3,7 @@ import type { SupabaseSession } from '@/lib/supabase';
 const sessionStorageKey = 'stock-auth-session';
 const userStorageKey = 'stock-auth-user';
 const registeredUsersStorageKey = 'stock-registered-users';
+const activeAccountsStorageKey = 'stock-active-accounts';
 
 export type AuthUser = {
   id: number;
@@ -25,6 +26,64 @@ export const ROLE_OPTIONS = [
 
 export function normalizeRole(cargo?: string | null) {
   return (cargo ?? '').trim().toUpperCase();
+}
+
+export function getLoggedInAccounts(): AuthUser[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = localStorage.getItem(activeAccountsStorageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as AuthUser[];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((user) => !!user?.email)
+      .map((user) => ({
+        ...user,
+        cargo: normalizeRole(user.cargo || 'TRABALHADOR'),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+export function saveLoggedInAccounts(users: AuthUser[]) {
+  if (typeof window !== 'undefined') {
+    const normalized = users.map((user) => ({
+      ...user,
+      cargo: normalizeRole(user.cargo || 'TRABALHADOR'),
+    }));
+    localStorage.setItem(activeAccountsStorageKey, JSON.stringify(normalized));
+  }
+}
+
+export function addLoggedInAccount(user: AuthUser) {
+  const current = getLoggedInAccounts();
+  const normalizedUser = {
+    ...user,
+    cargo: normalizeRole(user.cargo || 'TRABALHADOR'),
+  };
+
+  const next = current.filter((account) => account.email.toLowerCase() !== normalizedUser.email.toLowerCase());
+  saveLoggedInAccounts([...next, normalizedUser]);
+}
+
+export function removeLoggedInAccount(email?: string) {
+  if (!email || typeof window === 'undefined') {
+    return;
+  }
+
+  const current = getLoggedInAccounts();
+  const next = current.filter((user) => user.email.toLowerCase() !== email.toLowerCase());
+  saveLoggedInAccounts(next);
+
+  const activeUser = getCurrentUser();
+  if (activeUser && activeUser.email.toLowerCase() === email.toLowerCase()) {
+    clearCurrentUser();
+  }
 }
 
 export function hasAnyRole(cargo: string | null | undefined, roles: string[]) {
@@ -68,7 +127,12 @@ export function getRegisteredUsers(): RegisteredUser[] {
     const raw = localStorage.getItem(registeredUsersStorageKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as RegisteredUser[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.map((user) => ({
+      ...user,
+      cargo: normalizeRole(user.cargo || 'TRABALHADOR'),
+    }));
   } catch {
     return [];
   }
@@ -76,7 +140,11 @@ export function getRegisteredUsers(): RegisteredUser[] {
 
 export function saveRegisteredUsers(users: RegisteredUser[]) {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(registeredUsersStorageKey, JSON.stringify(users));
+    const normalized = users.map((user) => ({
+      ...user,
+      cargo: normalizeRole(user.cargo || 'TRABALHADOR'),
+    }));
+    localStorage.setItem(registeredUsersStorageKey, JSON.stringify(normalized));
   }
 }
 
@@ -84,7 +152,6 @@ export function clearLegacyAuthData() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('stock-users');
     localStorage.removeItem(userStorageKey);
-    localStorage.removeItem(registeredUsersStorageKey);
   }
 }
 
@@ -106,14 +173,29 @@ export function getCurrentUser(): AuthUser | null {
 
 export function saveCurrentUser(user: AuthUser) {
   if (typeof window !== 'undefined') {
-    sessionStorage.setItem(userStorageKey, JSON.stringify(user));
+    const normalizedUser = {
+      ...user,
+      cargo: normalizeRole(user.cargo || 'TRABALHADOR'),
+    };
+
+    sessionStorage.setItem(userStorageKey, JSON.stringify(normalizedUser));
+    addLoggedInAccount(normalizedUser);
   }
 }
 
 export function clearCurrentUser() {
   if (typeof window !== 'undefined') {
+    const current = getCurrentUser();
     sessionStorage.removeItem(userStorageKey);
     sessionStorage.removeItem(sessionStorageKey);
+
+    if (current?.email) {
+      const remaining = getLoggedInAccounts().filter(
+        (user) => user.email.toLowerCase() !== current.email.toLowerCase(),
+      );
+      saveLoggedInAccounts(remaining);
+    }
+
     clearLegacyAuthData();
   }
 }
