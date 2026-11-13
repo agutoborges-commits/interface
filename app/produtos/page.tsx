@@ -29,15 +29,6 @@ function normalizeBarcode(value?: string | null) {
   return (value ?? '').replace(/\s+/g, '').trim();
 }
 
-async function safeDelete(endpoint: string) {
-  try {
-    await apiFetch<void>(endpoint, { method: 'DELETE' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
@@ -192,6 +183,28 @@ export default function ProdutosPage() {
     }
   }
 
+  async function deleteProdutoComFallback(produto: Produto) {
+    try {
+      await apiFetch<void>(`/api/produtos/${produto.id}`, { method: 'DELETE' });
+      return true;
+    } catch {
+      await apiFetch<void>(`/api/produtos/${produto.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          nome: produto.nome,
+          codigoBarras: produto.codigoBarras ?? null,
+          descricao: produto.descricao ?? null,
+          precoCusto: produto.precoCusto,
+          precoVenda: produto.precoVenda,
+          idCategoria: produto.idCategoria ?? null,
+          idFornecedor: produto.idFornecedor ?? null,
+          ativo: false,
+        }),
+      });
+      return true;
+    }
+  }
+
   async function handleRemoverProduto(produto: Produto) {
     if (!isAutorizado) {
       setMessage({ type: 'error', text: 'Somente gerentes e CEO podem remover produtos.' });
@@ -217,18 +230,23 @@ export default function ProdutosPage() {
       const idsParaRemover = new Set(produtosParaRemover.map((item) => item.id));
 
       const movimentacoesRelacionadas = movimentacoes.filter((movimentacao) => idsParaRemover.has(movimentacao.produtoId));
-      const movimentacoesApagadas = await Promise.all(
-        movimentacoesRelacionadas.map(async (movimentacao) => {
-          const ok = await safeDelete(`/api/MovimentacoesEstoque/${movimentacao.produtoId}`);
-          return ok ? movimentacao.produtoId : null;
-        }),
-      );
+      const idsMovimentacoesRemovidas = new Set<number>();
 
-      const idsMovimentacoesRemovidas = new Set(movimentacoesApagadas.filter((id): id is number => id !== null));
+      for (const movimentacao of movimentacoesRelacionadas) {
+        const movimentacaoId = movimentacao.id;
+        if (typeof movimentacaoId !== 'number') continue;
+
+        try {
+          await apiFetch<void>(`/api/MovimentacoesEstoque/${movimentacaoId}`, { method: 'DELETE' });
+          idsMovimentacoesRemovidas.add(movimentacaoId);
+        } catch {
+          // ignora movimentações já removidas ou sem suporte de DELETE
+        }
+      }
 
       const promessasRemocao = Array.from(idsParaRemover).map(async (produtoId) => {
         const produtoAlvo = produtos.find((item) => item.id === produtoId) ?? produto;
-        const ok = await safeDelete(`/api/produtos/${produtoId}`);
+        const ok = await deleteProdutoComFallback(produtoAlvo);
         if (!ok) {
           throw new Error(`Não foi possível remover ${produtoAlvo.nome}.`);
         }
@@ -238,7 +256,7 @@ export default function ProdutosPage() {
       const produtosRemovidos = await Promise.all(promessasRemocao);
 
       setProdutos((current) => current.filter((item) => !idsParaRemover.has(item.id)));
-      setMovimentacoes((current) => current.filter((item) => !idsMovimentacoesRemovidas.has(item.produtoId)));
+      setMovimentacoes((current) => current.filter((item) => typeof item.id === 'number' && !idsMovimentacoesRemovidas.has(item.id)));
       setEstoqueEdicao((current) => {
         const updated = { ...current };
         for (const id of idsParaRemover) {

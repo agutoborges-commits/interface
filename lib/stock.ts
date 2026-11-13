@@ -1,4 +1,5 @@
 export type MovimentacaoEstoque = {
+  id?: number;
   produtoId: number;
   filialId: number;
   tipo: 'Entrada' | 'Saida' | 'PerdaAvaria';
