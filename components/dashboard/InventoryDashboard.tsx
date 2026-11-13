@@ -43,6 +43,8 @@ export function InventoryDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [inventoryMessage, setInventoryMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [savingProductId, setSavingProductId] = useState<number | null>(null);
   const [quantidadeManual, setQuantidadeManual] = useState<Record<number, number>>({});
   const [precoManual, setPrecoManual] = useState<Record<number, number>>({});
 
@@ -139,6 +141,73 @@ export function InventoryDashboard() {
   const semEstoque = produtos.filter(
     (produto) => produto.ativo && (quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0)) <= 0,
   ).length;
+
+  async function handleSalvarEstoque(produto: Produto) {
+    const quantidadeAtual = quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0);
+    const precoAtual = precoManual[produto.id] ?? Number(produto.precoVenda || 0);
+
+    if (!Number.isInteger(quantidadeAtual) || quantidadeAtual < 0 || !Number.isFinite(precoAtual) || precoAtual < 0) {
+      setInventoryMessage({ type: 'error', text: 'Informe uma quantidade inteira e valores iguais ou maiores que zero.' });
+      return;
+    }
+
+    setSavingProductId(produto.id);
+    setInventoryMessage(null);
+
+    try {
+      if (precoAtual !== Number(produto.precoVenda || 0)) {
+        await apiFetch(`/api/produtos/${produto.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            nome: produto.nome,
+            codigoBarras: produto.codigoBarras ?? null,
+            descricao: produto.descricao ?? null,
+            precoCusto: produto.precoCusto,
+            precoVenda: precoAtual,
+            idCategoria: produto.idCategoria ?? null,
+            idFornecedor: produto.idFornecedor ?? null,
+            ativo: produto.ativo,
+          }),
+        });
+
+        setProdutos((current) =>
+          current.map((item) => (item.id === produto.id ? { ...item, precoVenda: precoAtual } : item)),
+        );
+      }
+
+      const estoqueAtual = estoquePorProduto.get(produto.id) ?? 0;
+      const diferenca = quantidadeAtual - estoqueAtual;
+      if (diferenca !== 0) {
+        const tipo = diferenca > 0 ? 'Entrada' : 'Saida';
+        const quantidade = Math.abs(diferenca);
+        const filialId =
+          movimentacoes.find((movimentacao) => movimentacao.produtoId === produto.id)?.filialId ??
+          movimentacoes[0]?.filialId ??
+          pedidos[0]?.filialId ??
+          1;
+        await apiFetch('/api/MovimentacoesEstoque', {
+          method: 'POST',
+          body: JSON.stringify({
+            produtoId: produto.id,
+            filialId,
+            tipo,
+            quantidade,
+          }),
+        });
+
+        setMovimentacoes((current) => [...current, { produtoId: produto.id, filialId, tipo, quantidade }]);
+      }
+
+      setInventoryMessage({ type: 'success', text: `Estoque de ${produto.nome} salvo com sucesso.` });
+    } catch (error) {
+      setInventoryMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : `Não foi possível salvar ${produto.nome}.`,
+      });
+    } finally {
+      setSavingProductId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -315,6 +384,11 @@ export function InventoryDashboard() {
 
         <section className="content-grid">
           <div className="panel table-panel">
+            {inventoryMessage && (
+              <div className={`message ${inventoryMessage.type}`} role={inventoryMessage.type === 'error' ? 'alert' : 'status'}>
+                {inventoryMessage.text}
+              </div>
+            )}
             <div className="panel-header">
               <div>
                 <p className="eyebrow">Produtos</p>
@@ -332,6 +406,7 @@ export function InventoryDashboard() {
                     <th>Qtd</th>
                     <th>Valor estoque</th>
                     <th>Status</th>
+                    <th>Ação</th>
                   </tr>
                 </thead>
                         <tbody>
@@ -376,11 +451,6 @@ export function InventoryDashboard() {
                                 ...current,
                                 [produto.id]: safeValue,
                               }));
-                              setProdutos((current) =>
-                                current.map((item) =>
-                                  item.id === produto.id ? { ...item, precoVenda: safeValue } : item,
-                                ),
-                              );
                             }}
                           />
                         </td>
@@ -388,6 +458,16 @@ export function InventoryDashboard() {
                           <span className={`status-badge ${statusAtual.className}`}>
                             {statusAtual.label}
                           </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            disabled={!canManageProducts || savingProductId !== null}
+                            onClick={() => handleSalvarEstoque(produto)}
+                          >
+                            {savingProductId === produto.id ? 'Salvando...' : 'Salvar'}
+                          </button>
                         </td>
                       </tr>
                     );
