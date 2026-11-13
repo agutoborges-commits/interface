@@ -25,6 +25,19 @@ function getProductStockStatus(quantidade: number): 'normal' | 'baixo' | 'esgota
   return quantidade <= 5 ? 'baixo' : 'normal';
 }
 
+function normalizeBarcode(value?: string | null) {
+  return (value ?? '').replace(/\s+/g, '').trim();
+}
+
+async function safeDelete(endpoint: string) {
+  try {
+    await apiFetch<void>(endpoint, { method: 'DELETE' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
@@ -185,21 +198,62 @@ export default function ProdutosPage() {
       return;
     }
 
-    const confirmado = window.confirm(`Deseja remover permanentemente o produto ${produto.nome}?`);
+    const codigoBarras = normalizeBarcode(produto.codigoBarras);
+    const confirmado = window.confirm(
+      codigoBarras
+        ? `Deseja remover permanentemente o produto ${produto.nome} (código ${codigoBarras}) e todos os registros vinculados a este código de barras?`
+        : `Deseja remover permanentemente o produto ${produto.nome}?`,
+    );
     if (!confirmado) return;
 
     setRemovingProductId(produto.id);
     setMessage(null);
 
     try {
-      await apiFetch<void>(`/api/produtos/${produto.id}`, { method: 'DELETE' });
-      setProdutos((current) => current.filter((item) => item.id !== produto.id));
+      const produtosParaRemover = codigoBarras
+        ? produtos.filter((item) => normalizeBarcode(item.codigoBarras) === codigoBarras)
+        : [produto];
+
+      const idsParaRemover = new Set(produtosParaRemover.map((item) => item.id));
+
+      const movimentacoesRelacionadas = movimentacoes.filter((movimentacao) => idsParaRemover.has(movimentacao.produtoId));
+      const movimentacoesApagadas = await Promise.all(
+        movimentacoesRelacionadas.map(async (movimentacao) => {
+          const ok = await safeDelete(`/api/MovimentacoesEstoque/${movimentacao.produtoId}`);
+          return ok ? movimentacao.produtoId : null;
+        }),
+      );
+
+      const idsMovimentacoesRemovidas = new Set(movimentacoesApagadas.filter((id): id is number => id !== null));
+
+      const promessasRemocao = Array.from(idsParaRemover).map(async (produtoId) => {
+        const produtoAlvo = produtos.find((item) => item.id === produtoId) ?? produto;
+        const ok = await safeDelete(`/api/produtos/${produtoId}`);
+        if (!ok) {
+          throw new Error(`Não foi possível remover ${produtoAlvo.nome}.`);
+        }
+        return produtoId;
+      });
+
+      const produtosRemovidos = await Promise.all(promessasRemocao);
+
+      setProdutos((current) => current.filter((item) => !idsParaRemover.has(item.id)));
+      setMovimentacoes((current) => current.filter((item) => !idsMovimentacoesRemovidas.has(item.produtoId)));
       setEstoqueEdicao((current) => {
         const updated = { ...current };
-        delete updated[produto.id];
+        for (const id of idsParaRemover) {
+          delete updated[id];
+        }
         return updated;
       });
-      setMessage({ type: 'success', text: `Produto ${produto.nome} removido com sucesso.` });
+
+      const nomes = produtosParaRemover.map((item) => item.nome).join(', ');
+      setMessage({
+        type: 'success',
+        text: produtosRemovidos.length > 1
+          ? `Produtos removidos com sucesso: ${nomes}.`
+          : `Produto ${produto.nome} removido com sucesso.`,
+      });
     } catch (error) {
       setMessage({
         type: 'error',
