@@ -191,16 +191,39 @@ export default function ConferenciaPage() {
     });
   }
 
-  function handleConferir(pedido: Pedido) {
+  async function handleConferir(pedido: Pedido) {
+    const registroAtual = quantidades[pedido.id] ?? { pedida: 0, enviada: 0 };
+    const quantidadeEnviada = Math.max(0, Number(registroAtual.enviada) || 0);
+
     setPedidos((current) =>
       current.map((item) =>
         item.id === pedido.id ? { ...item, status: 'Conferido' } : item,
       ),
     );
-    setMessage({
-      type: 'success',
-      text: `Pedido ${pedido.numeroPedido} enviado para conferência concluída.`,
-    });
+
+    try {
+      if (quantidadeEnviada > 0) {
+        await apiFetch('/api/MovimentacoesEstoque', {
+          method: 'POST',
+          body: JSON.stringify({
+            produtoId: pedido.id,
+            filialId: pedido.filialId,
+            tipo: 'Entrada',
+            quantidade: quantidadeEnviada,
+          }),
+        });
+      }
+
+      setMessage({
+        type: 'success',
+        text: `Pedido ${pedido.numeroPedido} enviado para conferência concluída. Estoque atualizado em ${quantidadeEnviada} unidade(s).`,
+      });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Erro ao registrar a entrada no estoque.',
+      });
+    }
   }
 
   return (

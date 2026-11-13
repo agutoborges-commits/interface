@@ -15,6 +15,7 @@ const initialForm = {
   descricao: '',
   precoCusto: '',
   precoVenda: '',
+  quantidadeEstoque: '0',
   ativo: true,
 };
 
@@ -100,11 +101,24 @@ export default function ProdutosPage() {
         body: JSON.stringify(payload),
       });
 
+      const quantidadeEstoque = Number(form.quantidadeEstoque || 0);
+      if (quantidadeEstoque > 0) {
+        await apiFetch('/api/MovimentacoesEstoque', {
+          method: 'POST',
+          body: JSON.stringify({
+            produtoId: produtoCriado.id,
+            filialId: 1,
+            tipo: 'Entrada',
+            quantidade: quantidadeEstoque,
+          }),
+        });
+      }
+
       setProdutos((current) => [produtoCriado, ...current]);
       setForm(initialForm);
       setMessage({
         type: 'success',
-        text: `Produto ${produtoCriado.nome} cadastrado com sucesso.`,
+        text: `Produto ${produtoCriado.nome} cadastrado com sucesso${quantidadeEstoque > 0 ? ` com ${quantidadeEstoque} unidade(s) em estoque` : ''}.`,
       });
     } catch (error) {
       setMessage({
@@ -197,6 +211,18 @@ export default function ProdutosPage() {
                   value={form.precoVenda}
                   onChange={handleFieldChange}
                   required
+                />
+              </label>
+
+              <label className="form-field">
+                <span>Quantidade inicial em estoque</span>
+                <input
+                  name="quantidadeEstoque"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.quantidadeEstoque}
+                  onChange={handleFieldChange}
                 />
               </label>
 
