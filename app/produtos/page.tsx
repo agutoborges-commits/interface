@@ -59,6 +59,7 @@ export default function ProdutosPage() {
     const busca = buscaProduto.trim().toLocaleLowerCase('pt-BR');
 
     return produtos.filter((produto) => {
+      if (!produto.ativo) return false;
       if (categoriaFiltro !== 'todas' && String(produto.idCategoria) !== categoriaFiltro) return false;
 
       const quantidade = estoquePorProduto.get(produto.id) ?? 0;
@@ -81,11 +82,13 @@ export default function ProdutosPage() {
         apiFetch<MovimentacaoEstoque[]>('/api/MovimentacoesEstoque'),
       ]);
 
+      const produtosAtivos = produtosData.filter((produto) => produto.ativo !== false);
+
       const estoqueInicial = Object.fromEntries(
-        produtosData.map((produto) => [produto.id, String(calcularEstoquePorProduto(movimentacoesData).get(produto.id) ?? 0)]),
+        produtosAtivos.map((produto) => [produto.id, String(calcularEstoquePorProduto(movimentacoesData).get(produto.id) ?? 0)]),
       );
 
-      setProdutos(produtosData);
+      setProdutos(produtosAtivos);
       setMovimentacoes(movimentacoesData);
       setEstoqueEdicao(estoqueInicial);
     } catch (error) {
