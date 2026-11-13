@@ -29,6 +29,34 @@ function normalizeBarcode(value?: string | null) {
   return (value ?? '').replace(/\s+/g, '').trim();
 }
 
+const REMOVED_PRODUCTS_STORAGE_KEY = 'interface:produtos-removidos';
+
+function readRemovedProductIds() {
+  if (typeof window === 'undefined') return new Set<number>();
+
+  try {
+    const raw = window.localStorage.getItem(REMOVED_PRODUCTS_STORAGE_KEY);
+    if (!raw) return new Set<number>();
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set<number>();
+
+    return new Set(parsed.filter((value): value is number => typeof value === 'number' && Number.isFinite(value)));
+  } catch {
+    return new Set<number>();
+  }
+}
+
+function persistRemovedProductIds(ids: Set<number>) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(REMOVED_PRODUCTS_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {
+    // ignora falha de persistência local
+  }
+}
+
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
@@ -109,6 +137,13 @@ export default function ProdutosPage() {
       return;
     }
     loadProdutos();
+  }, []);
+
+  useEffect(() => {
+    const removedIds = readRemovedProductIds();
+    if (removedIds.size === 0) return;
+
+    setProdutos((current) => current.filter((produto) => !removedIds.has(produto.id)));
   }, []);
 
   const usuarioAtual = getCurrentUser();
@@ -249,7 +284,7 @@ export default function ProdutosPage() {
 
       const promessasRemocao = Array.from(idsParaRemover).map(async (produtoId) => {
         const produtoAlvo = produtos.find((item) => item.id === produtoId) ?? produto;
-        const ok = await deleteProdutoComFallback(produtoAlvo);
+        const ok = await desativarProduto(produtoAlvo);
         if (!ok) {
           throw new Error(`Não foi possível remover ${produtoAlvo.nome}.`);
         }
@@ -257,6 +292,10 @@ export default function ProdutosPage() {
       });
 
       const produtosRemovidos = await Promise.all(promessasRemocao);
+
+      const idsRemovidos = readRemovedProductIds();
+      for (const id of idsParaRemover) idsRemovidos.add(id);
+      persistRemovedProductIds(idsRemovidos);
 
       setProdutos((current) => current.filter((item) => !idsParaRemover.has(item.id)));
       setMovimentacoes((current) => current.filter((item) => typeof item.id === 'number' && !idsMovimentacoesRemovidas.has(item.id)));
@@ -283,6 +322,24 @@ export default function ProdutosPage() {
     } finally {
       setRemovingProductId(null);
     }
+  }
+
+  async function desativarProduto(produto: Produto) {
+    await apiFetch<void>(`/api/produtos/${produto.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        id: produto.id,
+        nome: produto.nome,
+        codigoBarras: produto.codigoBarras ?? null,
+        descricao: produto.descricao ?? null,
+        precoCusto: produto.precoCusto,
+        precoVenda: produto.precoVenda,
+        idCategoria: produto.idCategoria ?? null,
+        idFornecedor: produto.idFornecedor ?? null,
+        ativo: false,
+      }),
+    });
+    return true;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
