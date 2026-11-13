@@ -28,13 +28,14 @@ export default function ConferenciaPage() {
   const [loading, setLoading] = useState(true);
   const [loadingConferencia, setLoadingConferencia] = useState(false);
   const [savingItem, setSavingItem] = useState(false);
-  const [finalizing, setFinalizing] = useState(false);
+  const [finalizando, setFinalizando] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [conferenciaLoadError, setConferenciaLoadError] = useState<string | null>(null);
   const [codigoLeitura, setCodigoLeitura] = useState('');
   const [quantidadePorLeitura, setQuantidadePorLeitura] = useState(1);
   const [quantidadeRecebida, setQuantidadeRecebida] = useState('0');
   const [pedidoSelecionadoId, setPedidoSelecionadoId] = useState<number | null>(null);
+  const [removingPedidoId, setRemovingPedidoId] = useState<number | null>(null);
 
   async function loadPedidos() {
     try {
@@ -217,7 +218,7 @@ export default function ConferenciaPage() {
       return;
     }
 
-    setFinalizing(true);
+    setFinalizando(true);
     setMessage(null);
 
     try {
@@ -233,7 +234,7 @@ export default function ConferenciaPage() {
         text: error instanceof Error ? error.message : 'Não foi possível finalizar o pedido.',
       });
     } finally {
-      setFinalizing(false);
+      setFinalizando(false);
     }
   }
 
@@ -243,6 +244,14 @@ export default function ConferenciaPage() {
     const quantidade = Number(quantidadeRecebida);
     if (quantidadeRecebida.trim() === '' || !Number.isSafeInteger(quantidade) || quantidade < 0) {
       setMessage({ type: 'error', text: 'Informe uma quantidade inteira igual ou maior que zero.' });
+      return;
+    }
+
+    if (quantidade < itemAtual.quantidade) {
+      setMessage({
+        type: 'error',
+        text: `Quantidade insuficiente para ${itemAtual.nome}. Recebido ${quantidade} de ${itemAtual.quantidade} solicitado(s).`,
+      });
       return;
     }
 
@@ -323,7 +332,7 @@ export default function ConferenciaPage() {
             body: JSON.stringify({
               produtoId: itemAtual.produtoId,
               filialId: pedidoSelecionado.filialId,
-              tipo: 'Entrada',
+              tipo: 'Saida',
               quantidade,
               observacao: `Conferência do pedido ${pedidoSelecionado.numeroPedido}: ${itemAtual.nome}`,
             }),
@@ -357,6 +366,40 @@ export default function ConferenciaPage() {
       });
     } finally {
       setSavingItem(false);
+    }
+  }
+
+  async function handleRemoverPedido(pedido: Pedido) {
+    const confirmado = window.confirm(`Deseja remover o pedido ${pedido.numeroPedido} da fila de conferência?`);
+    if (!confirmado) return;
+
+    setRemovingPedidoId(pedido.id);
+    setMessage(null);
+
+    try {
+      try {
+        await apiFetch<void>(`/api/pedidos/${pedido.id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'Cancelado' }),
+        });
+      } catch {
+        await apiFetch<void>(`/api/pedidos/${pedido.id}`, { method: 'DELETE' });
+      }
+
+      setPedidos((current) => current.filter((item) => item.id !== pedido.id));
+      setConferenciasPorPedido((current) => {
+        const next = { ...current };
+        delete next[pedido.id];
+        return next;
+      });
+      setMessage({ type: 'success', text: `Pedido ${pedido.numeroPedido} removido da conferência.` });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : `Não foi possível remover o pedido ${pedido.numeroPedido}.`,
+      });
+    } finally {
+      setRemovingPedidoId(null);
     }
   }
 
@@ -426,6 +469,18 @@ export default function ConferenciaPage() {
                   </span>
                   <span className="conference-order-meta">Filial {pedido.filialId}</span>
                   <span className="conference-order-meta">{pedido.status || 'Aberto'}</span>
+                  <button
+                    type="button"
+                    className="remove-product-button"
+                    style={{ marginLeft: '12px' }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleRemoverPedido(pedido);
+                    }}
+                    disabled={removingPedidoId !== null}
+                  >
+                    {removingPedidoId === pedido.id ? 'Removendo...' : 'Remover'}
+                  </button>
                 </button>
               );
             })}
@@ -536,7 +591,7 @@ export default function ConferenciaPage() {
                     <button
                       type="button"
                       className="primary-button"
-                      disabled={savingItem || finalizing || loadingConferencia}
+                      disabled={savingItem || finalizando || loadingConferencia || Number(quantidadeRecebida) < itemAtual.quantidade}
                       onClick={handleConfirmarItem}
                     >
                       {savingItem ? 'Registrando item...' : 'Confirmar item e avançar'}
@@ -552,10 +607,10 @@ export default function ConferenciaPage() {
                       <button
                         type="button"
                         className="primary-button"
-                        disabled={finalizing}
+                        disabled={finalizando}
                         onClick={() => handleFinalizarPedido(pedidoSelecionado, itensDoPedido)}
                       >
-                        {finalizing ? 'Finalizando...' : 'Finalizar pedido'}
+                        {finalizando ? 'Finalizando...' : 'Finalizar pedido'}
                       </button>
                     )}
                   </>
