@@ -20,6 +20,18 @@ const money = new Intl.NumberFormat('pt-BR', {
   currency: 'BRL',
 });
 
+function getProductStatus(quantidade: number) {
+  if (quantidade <= 0) {
+    return { label: 'Esgotado', className: 'empty' };
+  }
+
+  if (quantidade <= 5) {
+    return { label: 'Baixo', className: 'low' };
+  }
+
+  return { label: 'Disponível', className: 'normal' };
+}
+
 export function InventoryDashboard() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -31,6 +43,8 @@ export function InventoryDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [quantidadeManual, setQuantidadeManual] = useState<Record<number, number>>({});
+  const [precoManual, setPrecoManual] = useState<Record<number, number>>({});
 
   useEffect(() => {
     const authUser = getCurrentUser();
@@ -91,7 +105,7 @@ export function InventoryDashboard() {
     produtos.forEach((produto) => {
       if (!produto.ativo) return;
 
-      const estoqueAtual = estoquePorProduto.get(produto.id) ?? 0;
+      const estoqueAtual = quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0);
       if (estoqueAtual <= 0) {
         items.push({
           id: `estoque-${produto.id}`,
@@ -104,22 +118,26 @@ export function InventoryDashboard() {
     });
 
     return items.slice(0, 8);
-  }, [estoquePorProduto, pedidos, produtos]);
+  }, [estoquePorProduto, pedidos, produtos, quantidadeManual]);
 
   const totalProdutos = produtos.length;
   const valorEstoque = useMemo(
     () => produtos.reduce(
-      (sum, produto) => sum + Number(produto.precoVenda || 0) * (estoquePorProduto.get(produto.id) ?? 0),
+      (sum, produto) => {
+        const quantidadeAtual = quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0);
+        const valorAtual = precoManual[produto.id] ?? Number(produto.precoVenda || 0);
+        return sum + valorAtual * quantidadeAtual;
+      },
       0,
     ),
-    [estoquePorProduto, produtos],
+    [estoquePorProduto, precoManual, produtos, quantidadeManual],
   );
   const totalUnidades = produtos.reduce(
-    (sum, produto) => sum + (estoquePorProduto.get(produto.id) ?? 0),
+    (sum, produto) => sum + (quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0)),
     0,
   );
   const semEstoque = produtos.filter(
-    (produto) => produto.ativo && (estoquePorProduto.get(produto.id) ?? 0) <= 0,
+    (produto) => produto.ativo && (quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0)) <= 0,
   ).length;
 
   if (loading) {
@@ -316,20 +334,59 @@ export function InventoryDashboard() {
                     <th>Status</th>
                   </tr>
                 </thead>
-                <tbody>
+                        <tbody>
                   {produtos.slice(0, 5).map((produto) => {
-                    const estoqueAtual = estoquePorProduto.get(produto.id) ?? 0;
-                    const semEstoque = estoqueAtual <= 0;
+                    const estoqueAtual = quantidadeManual[produto.id] ?? (estoquePorProduto.get(produto.id) ?? 0);
+                    const valorAtual = precoManual[produto.id] ?? Number(produto.precoVenda || 0);
+                    const statusAtual = getProductStatus(estoqueAtual);
 
                     return (
                       <tr key={produto.id}>
                         <td>{produto.id}</td>
                         <td>{produto.nome}</td>
-                        <td>{estoqueAtual}</td>
-                        <td>{money.format(Number(produto.precoVenda || 0) * estoqueAtual)}</td>
                         <td>
-                          <span className={`status-badge ${semEstoque ? 'empty' : 'normal'}`}>
-                            {semEstoque ? 'Sem estoque' : 'Disponível'}
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={estoqueAtual}
+                            disabled={!canManageProducts}
+                            className="inline-edit-input"
+                            onChange={(event) => {
+                              const value = Number(event.target.value || 0);
+                              setQuantidadeManual((current) => ({
+                                ...current,
+                                [produto.id]: Number.isFinite(value) ? Math.max(0, value) : 0,
+                              }));
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={valorAtual}
+                            disabled={!canManageProducts}
+                            className="inline-edit-input"
+                            onChange={(event) => {
+                              const value = Number(event.target.value || 0);
+                              const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+                              setPrecoManual((current) => ({
+                                ...current,
+                                [produto.id]: safeValue,
+                              }));
+                              setProdutos((current) =>
+                                current.map((item) =>
+                                  item.id === produto.id ? { ...item, precoVenda: safeValue } : item,
+                                ),
+                              );
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <span className={`status-badge ${statusAtual.className}`}>
+                            {statusAtual.label}
                           </span>
                         </td>
                       </tr>
