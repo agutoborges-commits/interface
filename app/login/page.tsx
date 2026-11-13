@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from 'react';
-import { clearCurrentUser, saveCurrentUser, ROLE_OPTIONS } from '@/lib/auth';
+import { clearCurrentUser, getCurrentUser, getRegisteredUsers, saveCurrentUser, saveRegisteredUsers, ROLE_OPTIONS } from '@/lib/auth';
 import { saveSupabaseSession } from '@/lib/supabase';
-import type { AuthUser } from '@/lib/auth';
+import type { AuthUser, RegisteredUser } from '@/lib/auth';
 
 const emptyLogin = {
   email: '',
@@ -24,6 +24,7 @@ export default function LoginPage() {
   const [registerForm, setRegisterForm] = useState(emptyRegister);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const currentUser = getCurrentUser();
 
   function persistLocalSession(user: AuthUser) {
     saveSupabaseSession({
@@ -56,11 +57,20 @@ export default function LoginPage() {
         throw new Error('Informe o e-mail e a senha para entrar.');
       }
 
+      const usuarios = getRegisteredUsers();
+      const usuarioRegistrado = usuarios.find(
+        (usuario) => usuario.email.toLowerCase() === email.toLowerCase() && usuario.senha === senha,
+      );
+
+      if (!usuarioRegistrado) {
+        throw new Error('E-mail ou senha inválidos. Cadastre-se primeiro ou use a conta registrada.');
+      }
+
       const usuario: AuthUser = {
-        id: Date.now(),
-        nome: email.split('@')[0] || 'Usuário',
-        email,
-        cargo: 'TRABALHADOR',
+        id: usuarioRegistrado.id,
+        nome: usuarioRegistrado.nome,
+        email: usuarioRegistrado.email,
+        cargo: usuarioRegistrado.cargo,
       };
 
       persistLocalSession(usuario);
@@ -98,8 +108,27 @@ export default function LoginPage() {
         throw new Error('As senhas não conferem.');
       }
 
-      const usuario: AuthUser = {
+      const usuarios = getRegisteredUsers();
+      const emailJaCadastrado = usuarios.some(
+        (usuario) => usuario.email.toLowerCase() === email.toLowerCase(),
+      );
+
+      if (emailJaCadastrado) {
+        throw new Error('Este e-mail já está cadastrado. Faça login com a senha da conta existente.');
+      }
+
+      const novoUsuario: RegisteredUser = {
         id: Date.now(),
+        nome,
+        email,
+        cargo: registerForm.cargo,
+        senha,
+      };
+
+      saveRegisteredUsers([...usuarios, novoUsuario]);
+
+      const usuario: AuthUser = {
+        id: novoUsuario.id,
         nome,
         email,
         cargo: registerForm.cargo,
@@ -117,15 +146,31 @@ export default function LoginPage() {
     }
   }
 
+  function handleLogout() {
+    clearCurrentUser();
+    setMessage({ type: 'success', text: 'Você saiu da conta com sucesso.' });
+    setShowRegister(false);
+    setLoginForm(emptyLogin);
+    setRegisterForm(emptyRegister);
+  }
+
   return (
     <main className="page-shell" style={{ maxWidth: 1200, margin: '0 auto', paddingTop: 18 }}>
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
         <h1 style={{ margin: 0, fontSize: '4rem', fontWeight: 800, lineHeight: 1.05, letterSpacing: '-0.06em', color: '#121212' }}>
           Acesso ao sistema
         </h1>
       </div>
 
       {message && <div className={`message ${message.type}`} style={{ marginBottom: 16 }}>{message.text}</div>}
+
+      {currentUser && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <button type="button" className="secondary-button" onClick={handleLogout}>
+            Sair da conta
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         <div className="card" style={{ minHeight: 420, borderRadius: 18, boxShadow: 'none', padding: '26px 28px', background: '#f3f3f3', border: '1px solid #e7e7e7' }}>

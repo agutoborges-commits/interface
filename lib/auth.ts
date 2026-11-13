@@ -2,12 +2,17 @@ import type { SupabaseSession } from '@/lib/supabase';
 
 const sessionStorageKey = 'stock-auth-session';
 const userStorageKey = 'stock-auth-user';
+const registeredUsersStorageKey = 'stock-registered-users';
 
 export type AuthUser = {
   id: number;
   nome: string;
   email: string;
   cargo: string;
+};
+
+export type RegisteredUser = AuthUser & {
+  senha: string;
 };
 
 export const ROLE_OPTIONS = [
@@ -54,10 +59,32 @@ export function saveSupabaseSession(session: SupabaseSession) {
   }
 }
 
+export function getRegisteredUsers(): RegisteredUser[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = localStorage.getItem(registeredUsersStorageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as RegisteredUser[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveRegisteredUsers(users: RegisteredUser[]) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(registeredUsersStorageKey, JSON.stringify(users));
+  }
+}
+
 export function clearLegacyAuthData() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('stock-users');
     localStorage.removeItem(userStorageKey);
+    localStorage.removeItem(registeredUsersStorageKey);
   }
 }
 
