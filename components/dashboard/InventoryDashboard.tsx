@@ -20,6 +20,14 @@ const money = new Intl.NumberFormat('pt-BR', {
   currency: 'BRL',
 });
 
+function getReadNotificationsStorageKey(userId: number) {
+  return `stock-read-notifications-${userId}`;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
 function getProductStatus(quantidade: number) {
   if (quantidade <= 0) {
     return { label: 'Esgotado', className: 'empty' };
@@ -40,6 +48,8 @@ export function InventoryDashboard() {
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
   const [sessionUser, setSessionUser] = useState<AuthUser | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
+  const [notificationReadError, setNotificationReadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [logoutError, setLogoutError] = useState<string | null>(null);
@@ -78,6 +88,25 @@ export function InventoryDashboard() {
 
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (!sessionUser) return;
+
+    try {
+      const stored = window.localStorage.getItem(getReadNotificationsStorageKey(sessionUser.id));
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      if (!isStringArray(parsed)) {
+        throw new Error('Formato inválido para as notificações lidas.');
+      }
+
+      setReadNotificationIds(parsed);
+      setNotificationReadError(null);
+    } catch (error) {
+      console.error('Erro ao carregar notificações lidas:', error);
+      setReadNotificationIds([]);
+      setNotificationReadError('Não foi possível carregar o status das notificações lidas.');
+    }
+  }, [sessionUser]);
 
   const userRole = normalizeRole(sessionUser?.cargo);
   const canManageProducts = hasAnyRole(userRole, ['GERENTE', 'CEO']);
@@ -121,6 +150,28 @@ export function InventoryDashboard() {
 
     return items.slice(0, 8);
   }, [estoquePorProduto, pedidos, produtos, quantidadeManual]);
+  const unreadNotificationsCount = notifications.filter(
+    (notification) => !readNotificationIds.includes(notification.id),
+  ).length;
+
+  function handleMarcarNotificacaoLida(notificationId: string) {
+    if (!sessionUser) return;
+
+    const updatedReadIds = Array.from(new Set([...readNotificationIds, notificationId]));
+    try {
+      window.localStorage.setItem(
+        getReadNotificationsStorageKey(sessionUser.id),
+        JSON.stringify(updatedReadIds),
+      );
+    } catch (error) {
+      console.error('Erro ao salvar notificação como lida:', error);
+      setNotificationReadError('Não foi possível salvar o status da notificação.');
+      return;
+    }
+
+    setReadNotificationIds(updatedReadIds);
+    setNotificationReadError(null);
+  }
 
   const totalProdutos = produtos.length;
   const valorEstoque = useMemo(
@@ -257,10 +308,12 @@ export function InventoryDashboard() {
               type="button"
               className="notification-button"
               onClick={() => setShowNotifications((current) => !current)}
-              aria-label="Notificações"
+              aria-label={`Notificações, ${unreadNotificationsCount} não lidas`}
             >
               <span className="notification-icon">🔔</span>
-              {notifications.length > 0 && <span className="notification-badge">{notifications.length}</span>}
+              {unreadNotificationsCount > 0 && (
+                <span className="notification-badge">{unreadNotificationsCount}</span>
+              )}
             </button>
 
             {showNotifications && (
@@ -269,17 +322,32 @@ export function InventoryDashboard() {
                   <strong>Notificações</strong>
                 </div>
 
+                {notificationReadError && (
+                  <div className="notification-read-error" role="alert">{notificationReadError}</div>
+                )}
+
                 {notifications.length === 0 ? (
                   <div className="notification-empty">Nenhuma notificação no momento.</div>
                 ) : (
                   <ul className="notification-list">
                     {notifications.map((notification) => (
-                      <li key={notification.id} className={`notification-item ${notification.type}`}>
+                      <li
+                        key={notification.id}
+                        className={`notification-item ${notification.type}${readNotificationIds.includes(notification.id) ? ' read' : ''}`}
+                      >
                         <div className="notification-dot" />
                         <div className="notification-content">
                           <strong>{notification.title}</strong>
                           <span>{notification.text}</span>
                           <small>{notification.time}</small>
+                          <button
+                            type="button"
+                            className="notification-read-button"
+                            disabled={readNotificationIds.includes(notification.id)}
+                            onClick={() => handleMarcarNotificacaoLida(notification.id)}
+                          >
+                            {readNotificationIds.includes(notification.id) ? 'Lida' : 'Marcar como lida'}
+                          </button>
                         </div>
                       </li>
                     ))}

@@ -190,6 +190,36 @@ button {
   border-color: #ffd6d0;
 }
 
+.notification-item.read {
+  opacity: 0.72;
+}
+
+.notification-read-button {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: #0066cc;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notification-read-button:disabled {
+  color: #6e6e73;
+  cursor: default;
+}
+
+.notification-read-error {
+  margin: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #a42f42;
+  font-size: 0.78rem;
+}
+
 .notification-dot {
   width: 10px;
   height: 10px;
