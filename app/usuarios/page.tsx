@@ -17,10 +17,12 @@ export default function UsuariosPage() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [removingUserId, setRemovingUserId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const usuarioAtual = getCurrentUser();
   const podeGerenciar = hasAnyRole(normalizeRole(usuarioAtual?.cargo), ['GERENTE', 'CEO']);
-  const cargosDisponiveis = usuarioAtual?.cargo.toUpperCase() === 'CEO'
+  const podeRemoverUsuarios = normalizeRole(usuarioAtual?.cargo) === 'CEO';
+  const cargosDisponiveis = podeRemoverUsuarios
     ? ROLE_OPTIONS
     : ROLE_OPTIONS.filter((role) => role.value !== 'GERENTE' && role.value !== 'CEO');
 
@@ -67,6 +69,32 @@ export default function UsuariosPage() {
       });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRemoverUsuario(usuario: Usuario) {
+    if (!podeRemoverUsuarios) {
+      setMessage({ type: 'error', text: 'Somente o CEO pode remover usuários.' });
+      return;
+    }
+
+    const confirmado = window.confirm(`Deseja remover o usuário ${usuario.nome} (${usuario.email})?`);
+    if (!confirmado) return;
+
+    setRemovingUserId(usuario.id);
+    setMessage(null);
+
+    try {
+      await apiFetch<void>(`/api/usuarios/${usuario.id}`, { method: 'DELETE' });
+      setUsuarios((current) => current.filter((item) => item.id !== usuario.id));
+      setMessage({ type: 'success', text: `Usuário ${usuario.nome} removido com sucesso.` });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : `Não foi possível remover ${usuario.nome}.`,
+      });
+    } finally {
+      setRemovingUserId(null);
     }
   }
 
@@ -146,6 +174,7 @@ export default function UsuariosPage() {
                     <th>E-mail</th>
                     <th>Cargo</th>
                     <th>Status</th>
+                    {podeRemoverUsuarios && <th>Ação</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -156,6 +185,18 @@ export default function UsuariosPage() {
                       <td>{usuario.email}</td>
                       <td>{usuario.cargo}</td>
                       <td>{usuario.ativo ? 'Ativo' : 'Inativo'}</td>
+                      {podeRemoverUsuarios && (
+                        <td>
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            disabled={removingUserId !== null}
+                            onClick={() => handleRemoverUsuario(usuario)}
+                          >
+                            {removingUserId === usuario.id ? 'Removendo...' : 'Remover'}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
