@@ -75,17 +75,29 @@ export function saveSupabaseSession(session: SupabaseSession) {
   }
 }
 
-export async function signOutSupabase(session: SupabaseSession) {
-  const { url, anonKey } = getSupabaseConfig();
-  const response = await fetch(`${url}/auth/v1/logout`, {
-    method: 'POST',
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${session.accessToken}`,
-    },
-  });
+export async function signOutSupabase(session?: SupabaseSession) {
+  if (!session) {
+    return;
+  }
 
-  if (!response.ok) {
-    throw new Error(`Não foi possível encerrar a sessão Supabase (HTTP ${response.status}).`);
+  try {
+    const { url, anonKey } = getSupabaseConfig();
+    const response = await fetch(`${url}/auth/v1/logout`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Não foi possível encerrar a sessão Supabase (HTTP ${response.status}).`);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('NEXT_PUBLIC_SUPABASE_URL')) {
+      return;
+    }
+
+    throw error;
   }
 }
