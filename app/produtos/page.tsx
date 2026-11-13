@@ -25,6 +25,7 @@ export default function ProdutosPage() {
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [removingProductId, setRemovingProductId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState(initialForm);
   const [estoqueEdicao, setEstoqueEdicao] = useState<Record<number, string>>({});
@@ -140,6 +141,37 @@ export default function ProdutosPage() {
         type: 'error',
         text: error instanceof Error ? error.message : 'Não foi possível salvar o estoque.',
       });
+    }
+  }
+
+  async function handleRemoverProduto(produto: Produto) {
+    if (!isAutorizado) {
+      setMessage({ type: 'error', text: 'Somente gerentes e CEO podem remover produtos.' });
+      return;
+    }
+
+    const confirmado = window.confirm(`Deseja remover permanentemente o produto ${produto.nome}?`);
+    if (!confirmado) return;
+
+    setRemovingProductId(produto.id);
+    setMessage(null);
+
+    try {
+      await apiFetch<void>(`/api/produtos/${produto.id}`, { method: 'DELETE' });
+      setProdutos((current) => current.filter((item) => item.id !== produto.id));
+      setEstoqueEdicao((current) => {
+        const updated = { ...current };
+        delete updated[produto.id];
+        return updated;
+      });
+      setMessage({ type: 'success', text: `Produto ${produto.nome} removido com sucesso.` });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : `Não foi possível remover ${produto.nome}.`,
+      });
+    } finally {
+      setRemovingProductId(null);
     }
   }
 
@@ -372,9 +404,21 @@ export default function ProdutosPage() {
                     </td>
                     <td>{produto.ativo ? 'Sim' : 'Não'}</td>
                     <td>
-                      <button type="button" className="secondary-button" onClick={() => handleSalvarEstoque(produto.id)}>
-                        Salvar
-                      </button>
+                      <div className="product-row-actions">
+                        <button type="button" className="secondary-button" onClick={() => handleSalvarEstoque(produto.id)}>
+                          Salvar
+                        </button>
+                        {isAutorizado && (
+                          <button
+                            type="button"
+                            className="remove-product-button"
+                            disabled={removingProductId !== null}
+                            onClick={() => handleRemoverProduto(produto)}
+                          >
+                            {removingProductId === produto.id ? 'Removendo...' : 'Remover'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

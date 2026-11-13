@@ -259,6 +259,7 @@ button {
 
 .primary-button,
 .secondary-button,
+.remove-product-button,
 .ghost-button,
 .table-actions button {
   border: none;
@@ -269,6 +270,7 @@ button {
 
 .primary-button:active,
 .secondary-button:active,
+.remove-product-button:active,
 .ghost-button:active,
 .table-actions button:active {
   transform: scale(0.97);
@@ -286,6 +288,28 @@ button {
 .secondary-button {
   background: #edf4ff;
   color: #0066cc;
+}
+
+.remove-product-button {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.remove-product-button:hover:not(:disabled) {
+  background: #ffe4e6;
+}
+
+.remove-product-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.product-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .ghost-button,
