@@ -2,7 +2,7 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background: linear-gradient(180deg, #f6f7fb 0%, #eef3ff 100%);
+  background: linear-gradient(180deg, #eef4ff 0%, #e8effb 100%);
   color: #1d1d1f;
   font-family: "Segoe UI", Arial, sans-serif;
 }
@@ -38,9 +38,9 @@ button {
   justify-content: space-between;
   gap: 20px;
   padding: 18px 22px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(239, 246, 255, 0.94);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid #d7e4f7;
   border-radius: 20px;
   box-shadow: 0 12px 38px rgba(15, 23, 42, 0.08);
   position: sticky;
@@ -155,7 +155,7 @@ button {
   flex: 0 0 auto;
   padding: 14px 16px;
   border-bottom: 1px solid #edf2f7;
-  background: #f8fbff;
+  background: #eaf2ff;
   color: #1f2a37;
 }
 
@@ -286,8 +286,8 @@ button {
 }
 
 .secondary-button {
-  background: #edf4ff;
-  color: #0066cc;
+  background: #dceaff;
+  color: #0750a2;
 }
 
 .remove-product-button {
@@ -347,8 +347,9 @@ button {
 }
 
 .stat-card {
-  background: #ffffff;
-  border: 1px solid rgba(17, 24, 39, 0.06);
+  background: #edf5ff;
+  border: 1px solid #c9ddfb;
+  border-left: 4px solid #2878d0;
   border-radius: 20px;
   padding: 22px 20px;
   box-shadow: 0 12px 38px rgba(15, 23, 42, 0.08);
@@ -357,17 +358,25 @@ button {
 }
 
 .stat-card.warning {
-  background: #fff8eb;
-  border-color: #f3d684;
+  background: #fff5df;
+  border-color: #f2d18a;
+  border-left-color: #df8b12;
 }
 
 .stat-card.danger {
-  background: #fff1f2;
-  border-color: #f7bcc6;
+  background: #ffeaed;
+  border-color: #f3bbc4;
+  border-left-color: #d9475b;
+}
+
+.stat-card:nth-child(2) {
+  background: #e9f8f1;
+  border-color: #b7e5cf;
+  border-left-color: #169563;
 }
 
 .stat-label {
-  color: #6e6e73;
+  color: #415570;
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -376,15 +385,28 @@ button {
 .stat-card strong {
   font-size: clamp(2rem, 2.3vw, 2.5rem);
   line-height: 1;
+  color: #174b87;
+}
+
+.stat-card:nth-child(2) strong {
+  color: #08734c;
+}
+
+.stat-card.warning strong {
+  color: #9c5d00;
+}
+
+.stat-card.danger strong {
+  color: #b42338;
 }
 
 .stat-card small {
-  color: #6e6e73;
+  color: #53657e;
 }
 
 .panel {
-  background: #ffffff;
-  border: 1px solid rgba(17, 24, 39, 0.06);
+  background: #f8faff;
+  border: 1px solid #d8e4f5;
   border-radius: 18px;
   box-shadow: 0 12px 38px rgba(15, 23, 42, 0.08);
   padding: 22px;
@@ -395,6 +417,11 @@ button {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid #d8e6fb;
+  border-left: 4px solid #3980d5;
+  border-radius: 12px;
+  background: #eaf2ff;
 }
 
 .eyebrow {
@@ -466,10 +493,16 @@ button {
 
 .table-wrap th,
 .table-card th {
-  color: #6e6e73;
+  background: #eaf2ff;
+  color: #355274;
   text-transform: uppercase;
   font-size: 0.72rem;
   letter-spacing: 0.08em;
+}
+
+.table-wrap tbody tr:hover td,
+.table-card tbody tr:hover td {
+  background: #f0f6ff;
 }
 
 .status-badge {
@@ -545,8 +578,8 @@ button {
   align-items: center;
   padding: 12px 14px;
   border-radius: 14px;
-  background: #f8f9fc;
-  border: 1px solid #eef2f7;
+  background: #edf4ff;
+  border: 1px solid #d6e5fa;
 }
 
 .summary-item span {
@@ -571,8 +604,8 @@ button {
 }
 
 .card {
-  background: #ffffff;
-  border: 1px solid rgba(17, 24, 39, 0.06);
+  background: #f8faff;
+  border: 1px solid #d8e4f5;
   border-radius: 18px;
   box-shadow: 0 12px 38px rgba(15, 23, 42, 0.08);
   padding: 22px;
