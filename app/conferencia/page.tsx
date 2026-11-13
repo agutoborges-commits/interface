@@ -14,6 +14,7 @@ export default function ConferenciaPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [codigoLeitura, setCodigoLeitura] = useState('');
+  const [quantidadePorLeitura, setQuantidadePorLeitura] = useState<number>(1);
   const [pedidoSelecionadoId, setPedidoSelecionadoId] = useState<number | null>(null);
 
   async function loadPedidos() {
@@ -122,60 +123,72 @@ export default function ConferenciaPage() {
       return;
     }
 
+    if (!pedidoSelecionado) {
+      setMessage({
+        type: 'error',
+        text: 'Selecione um pedido antes de escanear o produto.',
+      });
+      return;
+    }
+
+    const quantidadePorEscaneamento = Math.max(1, Number(quantidadePorLeitura) || 1);
     const produtoEncontrado = produtos.find((produto) => {
       const codigoProduto = produto.codigoBarras?.trim();
       if (!codigoProduto) return false;
       return codigoProduto === codigoLimpo || codigoProduto.replace(/\D/g, '') === codigoLimpo.replace(/\D/g, '');
     });
 
-    if (produtoEncontrado) {
-      const pedidoEncontrado = pedidos.find((pedido) => {
-        const observacao = (pedido.observacao ?? '').toLowerCase();
-        const nomeProduto = (produtoEncontrado.nome ?? '').toLowerCase();
-        return observacao.includes(nomeProduto);
-      });
-
-      if (pedidoEncontrado) {
-        setCodigoLeitura(codigoLimpo);
-        setMessage({
-          type: 'success',
-          text: `Produto ${produtoEncontrado.nome} confirmado no pedido ${pedidoEncontrado.numeroPedido}.`,
-        });
-        handleConferir(pedidoEncontrado);
-        return;
-      }
-
-      setCodigoLeitura(codigoLimpo);
+    if (!produtoEncontrado) {
       setMessage({
         type: 'error',
-        text: `Código ${codigoLimpo} corresponde ao produto ${produtoEncontrado.nome}, mas não foi encontrado em nenhum pedido em conferência.`,
-      });
-      return;
-    }
-
-    const pedidoEncontrado = pedidos.find((pedido) => {
-      const codigoPedido = pedido.numeroPedido.replace(/\D/g, '');
-      const codigoNormalizado = codigoLimpo.replace(/\D/g, '');
-      const codigoId = String(pedido.id);
-
-      return codigoPedido === codigoNormalizado || codigoId === codigoLimpo || codigoLimpo === pedido.numeroPedido;
-    });
-
-    if (!pedidoEncontrado) {
-      setMessage({
-        type: 'error',
-        text: `Código de barras não encontrado: ${codigoLimpo}`,
+        text: `Código de barras não cadastrado: ${codigoLimpo}`,
       });
       setCodigoLeitura(codigoLimpo);
       return;
     }
 
-    setCodigoLeitura(pedidoEncontrado.numeroPedido);
+    const pedidoComProduto = pedidoSelecionado.observacao?.toLowerCase().includes((produtoEncontrado.nome ?? '').toLowerCase());
+    if (!pedidoComProduto) {
+      setMessage({
+        type: 'error',
+        text: `O produto ${produtoEncontrado.nome} não pertence ao pedido ${pedidoSelecionado.numeroPedido}.`,
+      });
+      setCodigoLeitura(codigoLimpo);
+      return;
+    }
+
+    const registroAtual = quantidades[pedidoSelecionado.id] ?? { pedida: 0, enviada: 0 };
+    const pedida = Math.max(registroAtual.pedida, 0);
+    const quantidadeAtual = Math.max(registroAtual.enviada, 0);
+    const novaQuantidadeEnviada = Math.min(quantidadeAtual + quantidadePorEscaneamento, pedida || Number.MAX_SAFE_INTEGER);
+
+    setQuantidades((current) => ({
+      ...current,
+      [pedidoSelecionado.id]: {
+        pedida,
+        enviada: novaQuantidadeEnviada,
+      },
+    }));
+
+    setCodigoLeitura(codigoLimpo);
+
+    if (novaQuantidadeEnviada >= pedida && pedida > 0) {
+      setPedidos((current) =>
+        current.map((item) =>
+          item.id === pedidoSelecionado.id ? { ...item, status: 'Conferido' } : item,
+        ),
+      );
+      setMessage({
+        type: 'success',
+        text: `Quantidade concluída para ${produtoEncontrado.nome}. Pedido ${pedidoSelecionado.numeroPedido} conferido.`,
+      });
+      return;
+    }
+
     setMessage({
       type: 'success',
-      text: `Pedido ${pedidoEncontrado.numeroPedido} localizado pelo código lido.`,
+      text: `${produtoEncontrado.nome} conferido. ${novaQuantidadeEnviada}/${pedida} unidades.`,
     });
-    handleConferir(pedidoEncontrado);
   }
 
   function handleConferir(pedido: Pedido) {
@@ -210,17 +223,29 @@ export default function ConferenciaPage() {
           </div>
         </div>
 
-        <label className="form-field full-width" style={{ marginTop: '8px' }}>
-          <span>Código do pedido / scanner</span>
-          <BarcodeScannerInput
-            type="text"
-            value={codigoLeitura}
-            onChange={(value) => setCodigoLeitura(value)}
-            onScan={handleScannerScan}
-            placeholder="Escaneie o código do pedido ou digite o número"
-            autoFocus
-          />
-        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: '16px', alignItems: 'end' }}>
+          <label className="form-field full-width" style={{ marginTop: '8px' }}>
+            <span>Código do pedido / scanner</span>
+            <BarcodeScannerInput
+              type="text"
+              value={codigoLeitura}
+              onChange={(value) => setCodigoLeitura(value)}
+              onScan={handleScannerScan}
+              placeholder="Escaneie o código do produto ou digite o número"
+              autoFocus
+            />
+          </label>
+
+          <label className="form-field full-width" style={{ marginTop: '8px' }}>
+            <span>Quantidade por leitura</span>
+            <input
+              type="number"
+              min="1"
+              value={quantidadePorLeitura}
+              onChange={(event) => setQuantidadePorLeitura(Math.max(1, Number(event.target.value) || 1))}
+            />
+          </label>
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: '24px' }}>
