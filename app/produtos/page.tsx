@@ -1,10 +1,11 @@
 "use client";
 
 import Link from 'next/link';
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import BarcodeScannerInput from '@/components/barcode/BarcodeScannerInput';
 import { apiFetch } from '@/lib/api';
 import { getCurrentUser, hasAnyRole, normalizeRole } from '@/lib/auth';
+import { calcularEstoquePorProduto, type MovimentacaoEstoque } from '@/lib/stock';
 import type { Produto } from '@/types/inventory';
 
 const allowedRoles = ['GERENTE', 'CEO'];
@@ -15,22 +16,38 @@ const initialForm = {
   descricao: '',
   precoCusto: '',
   precoVenda: '',
-  quantidadeEstoque: '0',
+  quantidadeEstoque: '1000',
   ativo: true,
 };
 
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [estoqueEdicao, setEstoqueEdicao] = useState<Record<number, string>>({});
+
+  const estoquePorProduto = useMemo(
+    () => calcularEstoquePorProduto(movimentacoes),
+    [movimentacoes],
+  );
 
   async function loadProdutos() {
     try {
-      const produtosData = await apiFetch<Produto[]>('/api/produtos');
+      const [produtosData, movimentacoesData] = await Promise.all([
+        apiFetch<Produto[]>('/api/produtos'),
+        apiFetch<MovimentacaoEstoque[]>('/api/MovimentacoesEstoque'),
+      ]);
+
+      const estoqueInicial = Object.fromEntries(
+        produtosData.map((produto) => [produto.id, String(calcularEstoquePorProduto(movimentacoesData).get(produto.id) ?? 0)]),
+      );
 
       setProdutos(produtosData);
+      setMovimentacoes(movimentacoesData);
+      setEstoqueEdicao(estoqueInicial);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
       setMessage({
@@ -70,6 +87,60 @@ export default function ProdutosPage() {
       ...current,
       codigoBarras: value,
     }));
+  }
+
+  function handleEstoqueEdicaoChange(produtoId: number, value: string) {
+    setEstoqueEdicao((current) => ({
+      ...current,
+      [produtoId]: value,
+    }));
+  }
+
+  async function handleSalvarEstoque(produtoId: number) {
+    const valorAtual = Number(estoqueEdicao[produtoId] ?? 0);
+    const estoqueAtual = estoquePorProduto.get(produtoId) ?? 0;
+    const diferenca = valorAtual - estoqueAtual;
+
+    if (diferenca === 0) {
+      setMessage({
+        type: 'success',
+        text: 'Estoque sem alterações.',
+      });
+      return;
+    }
+
+    try {
+      const tipo = diferenca > 0 ? 'Entrada' : 'Saida';
+      await apiFetch('/api/MovimentacoesEstoque', {
+        method: 'POST',
+        body: JSON.stringify({
+          produtoId,
+          filialId: 1,
+          tipo,
+          quantidade: Math.abs(diferenca),
+        }),
+      });
+
+      setMovimentacoes((current) => [
+        ...current,
+        {
+          produtoId,
+          filialId: 1,
+          tipo,
+          quantidade: Math.abs(diferenca),
+        },
+      ]);
+
+      setMessage({
+        type: 'success',
+        text: `Estoque do produto ${produtoId} atualizado para ${valorAtual} unidade(s).`,
+      });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível salvar o estoque.',
+      });
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -274,7 +345,9 @@ export default function ProdutosPage() {
                   <th>ID</th>
                   <th>Nome</th>
                   <th>Preço venda</th>
+                  <th>Estoque</th>
                   <th>Ativo</th>
+                  <th>Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -288,7 +361,21 @@ export default function ProdutosPage() {
                         currency: 'BRL',
                       }).format(Number(produto.precoVenda || 0))}
                     </td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        value={estoqueEdicao[produto.id] ?? String(estoquePorProduto.get(produto.id) ?? 0)}
+                        onChange={(event) => handleEstoqueEdicaoChange(produto.id, event.target.value)}
+                        style={{ width: '90px' }}
+                      />
+                    </td>
                     <td>{produto.ativo ? 'Sim' : 'Não'}</td>
+                    <td>
+                      <button type="button" className="secondary-button" onClick={() => handleSalvarEstoque(produto.id)}>
+                        Salvar
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
